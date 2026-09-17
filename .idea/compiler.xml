@@ -10,6 +10,10 @@
         <module name="beyond-integration.main" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="21" />
+    <bytecodeTargetLevel target="21">
+      <module name="C4-Pro-c4_1.20.1_forge" target="17" />
+      <module name="C4-Pro-c4_1.20.1_forge.main" target="17" />
+      <module name="C4-Pro-c4_1.20.1_forge.test" target="17" />
+    </bytecodeTargetLevel>
   </component>
 </project>

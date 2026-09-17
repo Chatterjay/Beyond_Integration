@@ -183,7 +183,7 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     // 必须依赖 - BeyondDimensions (CurseMaven)
-   implementation fg.deobf("curse.maven:beyond-dimensions-1222890:8588447")
+    implementation fg.deobf("maven.modrinth:6zGxpbt7:XXnCAMBQ")
     // taczaddon - compileOnly（mixin 注解处理器校验 targets；仅 Forge 1.20.1 有此 addon）
     implementation fg.deobf("curse.maven:tacz-addon-1238419:8675340")
     // Project ID: 361579
@@ -201,7 +201,7 @@ dependencies {
     implementation fg.deobf("curse.maven:curios-309927:${curios}")
     implementation fg.deobf("curse.maven:geckolib-388172:${geckolib}")
     implementation fg.deobf("curse.maven:playeranimator-658587:${playeranimator}")
-    implementation fg.deobf("curse.maven:timelessandclassicszero-1028108:${timelessandclassicszero}")
+    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:8141310")
     implementation fg.deobf("curse.maven:superb-warfare-1218165:8046997")
     implementation fg.deobf("curse.maven:kotlin-for-forge-351264:7291067")
     implementation fg.deobf("curse.maven:cloth-config-348521:5729105")
@@ -218,7 +218,11 @@ dependencies {
     implementation fg.deobf("curse.maven:placebo-283644:6274231")
     implementation fg.deobf("curse.maven:inventory-profiles-next-495267:7565992")
     implementation fg.deobf("curse.maven:libipn-679177:5208511")
-
+    implementation fg.deobf("curse.maven:quark-243121:6427817")
+    implementation fg.deobf("curse.maven:zeta-968868:7335229")
+    implementation fg.deobf("curse.maven:mouse-tweaks-60089:5338457")
+    implementation fg.deobf("curse.maven:ftb-library-forge-404465:8226927")
+    implementation fg.deobf("curse.maven:ftb-quests-forge-289412:8078538")
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
