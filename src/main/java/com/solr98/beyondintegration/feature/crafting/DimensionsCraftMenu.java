@@ -281,32 +281,12 @@ public class DimensionsCraftMenu extends DimensionsStorageMenu implements IClean
             return result;
         }
 
-        // 背包 → 盔甲槽/副手槽（3×3 合成格忽略：与结果槽同理，由 BD 通道处理移到存储，与 BD 一致）
+        // 背包 → 直接进网络：交由 BD 自定义快速移动通道处理
+        // 客户端 shift 点击已发送 CallSeverClickPacket → customClickHandler → quickMoveHandle
+        // 将槽位物品插入网络存储区（storageStartIndex~storageEndIndex，由 BD 负责插入与扣槽）；
+        // 原版通道返回 EMPTY 不动作，避免重复插入与 QUICK_MOVE 循环。
         if (slotIndex >= inventoryStartIndex && slotIndex < inventoryEndIndex) {
-            for (int i = 10; i < 15 && !stack.isEmpty(); i++) {
-                Slot t = this.slots.get(wsS + i);
-                if (!t.mayPlace(stack)) continue;
-                ItemStack ts = t.getItem();
-                if (ts.isEmpty()) {
-                    int n = Math.min(stack.getCount(), t.getMaxStackSize(stack));
-                    t.set(stack.split(n));
-                    t.setChanged();
-                } else if (ItemStack.isSameItemSameTags(ts, stack)) {
-                    int space = t.getMaxStackSize(stack) - ts.getCount();
-                    if (space > 0) {
-                        int n = Math.min(stack.getCount(), space);
-                        ts.grow(n);
-                        stack.shrink(n);
-                        t.set(ts);
-                        t.setChanged();
-                    }
-                }
-            }
-            if (stack.isEmpty()) {
-                slot.setChanged();
-                slotsChanged(craftSlots);
-                return result;
-            }
+            return ItemStack.EMPTY;
         }
         return super.quickMoveStack(player, slotIndex);
     }
@@ -318,8 +298,8 @@ public class DimensionsCraftMenu extends DimensionsStorageMenu implements IClean
     // 先 copy 并清空再归还（网络→背包→掉落），任何失败路径都不吞货
     public void cleanCraftSlots(boolean toStorage) {
         if (player.level().isClientSide()) return;
-        DimensionsNet net = DimensionsNet.getPrimaryNetFromPlayer((ServerPlayer) player);
-        var storage = net != null ? net.getUnifiedStorage() : null;
+        // 归还目标为当前打开的网络存储（对齐 BD cleanCraftSlots：用菜单 storage，而非玩家主网络）
+        var storage = this.storage;
         // 先 copy 并清空再归还：归还过程不依赖容器内容，任何失败路径都能兜底到背包/掉落，绝不吞货
         List<ItemStack> stacks = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
@@ -351,6 +331,10 @@ public class DimensionsCraftMenu extends DimensionsStorageMenu implements IClean
             }
         }
         slotsChanged(craftSlots);
+        // 归还后立即全量同步玩家背包：关闭界面瞬间差分同步可能漏发个别槽，导致客户端物品栏不显示
+        if (player instanceof ServerPlayer sp) {
+            sp.inventoryMenu.broadcastFullState();
+        }
     }
 
     // ── JEI/EMI 配方填充 ──
@@ -358,8 +342,8 @@ public class DimensionsCraftMenu extends DimensionsStorageMenu implements IClean
     public void transferRecipe(java.util.List<IStackKey<?>> inputKeys, java.util.List<Long> amounts) {
         // 清空合成格（背包优先归还，满则掉落，不吞货）
         cleanCraftSlots(false);
-        DimensionsNet net = DimensionsNet.getPrimaryNetFromPlayer((ServerPlayer) player);
-        var storage = net != null ? net.getUnifiedStorage() : null;
+        // 取料目标为当前打开的网络存储（对齐 BD transferRecipe）
+        var storage = this.storage;
         int limit = Math.min(9, inputKeys.size());
         for (int i = 0; i < limit; i++) {
             if (!(inputKeys.get(i) instanceof ItemStackKey isk)) continue;

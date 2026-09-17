@@ -35,13 +35,13 @@ public class EnchantSeparateCommand {
             ServerPlayer player = src.getPlayerOrException();
             DimensionsNet net = DimensionsNet.getPrimaryNetFromPlayer(player);
             if (net == null) {
-                src.sendFailure(Component.translatable("message.beyond_integration.no_primary_network"));
+                src.sendFailure(CommandLang.component("error.no_primary_network"));
                 return 0;
             }
             Component result = EnchantmentBookSeparatorHandler.separateAll(net);
             src.sendSuccess(() -> result, false);
         } catch (Exception e) {
-            src.sendFailure(Component.translatable("message.beyond_integration.execute_failed", e.getMessage()));
+            src.sendFailure(CommandLang.component("error.execute_failed", e.getMessage()));
         }
         return 1;
     }

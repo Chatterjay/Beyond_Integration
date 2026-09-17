@@ -236,6 +236,20 @@ public class SuperbAmmoCache {
         }
     }
 
+    /** 当前网络是否启用自动充电（默认启用；读取独立状态，不依赖 SW 快照） */
+    public static boolean getEnergyCharge() {
+        synchronized (LOCK) {
+            return EnergyChargeState.get(currentNetId);
+        }
+    }
+
+    /** 更新当前网络的自动充电标记（独立状态，不依赖 SW 快照） */
+    public static void setEnergyCharge(boolean v) {
+        synchronized (LOCK) {
+            EnergyChargeState.set(currentNetId, v);
+        }
+    }
+
     // ═══════════ 载具侧 API（操作 vehicleNetId 快照）═══════════
 
     /** 载具网络是否有快照数据 */

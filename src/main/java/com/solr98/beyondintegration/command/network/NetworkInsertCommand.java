@@ -4,13 +4,21 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceOrTagKeyArgument;
 import net.minecraft.commands.arguments.item.ItemArgument;
 import net.minecraft.commands.arguments.ResourceArgument;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.fluids.FluidStack;
@@ -21,6 +29,9 @@ import com.wintercogs.beyonddimensions.api.storage.key.KeyAmount;
 import com.wintercogs.beyonddimensions.api.storage.key.impl.ItemStackKey;
 import com.wintercogs.beyonddimensions.api.storage.key.impl.FluidStackKey;
 import com.wintercogs.beyonddimensions.api.storage.key.impl.EnergyStackKey;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 网络插入命令
@@ -35,6 +46,8 @@ public class NetworkInsertCommand {
         return Commands.literal("insert")
             // 物品插入命令
             .then(buildItemInsertCommand(context))
+            // 物品标签批量插入命令
+            .then(buildTagInsertCommand(context))
             // 流体插入命令
             .then(buildFluidInsertCommand(context))
             // 能量插入命令
@@ -81,6 +94,55 @@ public class NetworkInsertCommand {
                                 LongArgumentType.getLong(ctx, "count"))))));
     }
     
+    /**
+     * 构建物品标签批量插入命令
+     * 用法：insert tag <#标签> [每种数量] [netId] 或 insert tag <netId> <#标签> [每种数量]
+     * 标签内每种物品各插入 count 个，空间不足的种类自动跳过
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> buildTagInsertCommand(
+            net.minecraft.commands.CommandBuildContext context) {
+        return Commands.literal("tag")
+            // 缺少标签参数
+            .executes(ctx -> {
+                ctx.getSource().sendFailure(CommandLang.component("error.tag_required"));
+                return 0;
+            })
+            // 指定标签，默认网络和数量（每种1个）
+            .then(Commands.argument("tag", ResourceOrTagKeyArgument.resourceOrTagKey(Registries.ITEM))
+                .executes(ctx -> executeInsertTagDefault(ctx, getItemTag(ctx, "tag"), 1))
+                // 指定标签和数量，默认网络
+                .then(Commands.argument("count", LongArgumentType.longArg(1, Long.MAX_VALUE))
+                    .executes(ctx -> executeInsertTagDefault(ctx, getItemTag(ctx, "tag"),
+                            LongArgumentType.getLong(ctx, "count")))
+                    // 指定网络、标签和数量
+                    .then(Commands.argument("netId", IntegerArgumentType.integer(0, 9999))
+                        .executes(ctx -> executeInsertTag(ctx, IntegerArgumentType.getInteger(ctx, "netId"),
+                                getItemTag(ctx, "tag"), LongArgumentType.getLong(ctx, "count"))))))
+            // 指定网络，默认标签和数量
+            .then(Commands.argument("netId", IntegerArgumentType.integer(0, 9999))
+                .executes(ctx -> {
+                    ctx.getSource().sendFailure(CommandLang.component("error.tag_required"));
+                    return 0;
+                })
+                .then(Commands.argument("tag", ResourceOrTagKeyArgument.resourceOrTagKey(Registries.ITEM))
+                    .executes(ctx -> executeInsertTag(ctx, IntegerArgumentType.getInteger(ctx, "netId"),
+                            getItemTag(ctx, "tag"), 1))
+                    .then(Commands.argument("count", LongArgumentType.longArg(1, Long.MAX_VALUE))
+                        .executes(ctx -> executeInsertTag(ctx, IntegerArgumentType.getInteger(ctx, "netId"),
+                                getItemTag(ctx, "tag"), LongArgumentType.getLong(ctx, "count"))))));
+    }
+
+    /** 从命令上下文解析物品标签；输入为单个物品 ID（无 # 前缀）时提示需要标签 */
+    private static TagKey<Item> getItemTag(CommandContext<CommandSourceStack> ctx, String name)
+            throws CommandSyntaxException {
+        var result = ResourceOrTagKeyArgument.getResourceOrTagKey(ctx, name, Registries.ITEM,
+                new DynamicCommandExceptionType(arg -> CommandLang.component("error.tag_required")));
+        if (result.unwrap().right().isEmpty()) {
+            throw new SimpleCommandExceptionType(CommandLang.component("error.tag_required")).create();
+        }
+        return result.unwrap().right().get();
+    }
+
     /**
      * 构建流体插入命令
      */
@@ -134,6 +196,7 @@ public class NetworkInsertCommand {
     
     /**
      * 构建能量插入命令
+     * 用法：energy [fe数量] [netId]（数量在前，网络 ID 在后；省略则数量 1000、主要网络）
      */
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> buildEnergyInsertCommand() {
         return Commands.literal("energy")
@@ -142,14 +205,8 @@ public class NetworkInsertCommand {
             // 指定数量，默认网络
             .then(Commands.argument("amount", LongArgumentType.longArg(1, Long.MAX_VALUE))
                 .executes(ctx -> executeInsertEnergyDefault(ctx, LongArgumentType.getLong(ctx, "amount")))
-                // 指定网络和数量
+                // 指定数量和网络
                 .then(Commands.argument("netId", IntegerArgumentType.integer(0, 9999))
-                    .executes(ctx -> executeInsertEnergy(ctx, IntegerArgumentType.getInteger(ctx, "netId"),
-                            LongArgumentType.getLong(ctx, "amount")))))
-            // 指定网络，默认数量（1000FE）
-            .then(Commands.argument("netId", IntegerArgumentType.integer(0, 9999))
-                .executes(ctx -> executeInsertEnergy(ctx, IntegerArgumentType.getInteger(ctx, "netId"), 1000L))
-                .then(Commands.argument("amount", LongArgumentType.longArg(1, Long.MAX_VALUE))
                     .executes(ctx -> executeInsertEnergy(ctx, IntegerArgumentType.getInteger(ctx, "netId"),
                             LongArgumentType.getLong(ctx, "amount")))));
     }
@@ -242,6 +299,139 @@ public class NetworkInsertCommand {
         source.sendSuccess(() -> Component.literal(
             CommandLang.get("network.insert.item.success", count, itemName, netId)
         ), false);
+        
+        return 1;
+    }
+    
+    // ========== 物品标签插入方法 ==========
+    
+    /**
+     * 执行插入标签物品到默认网络（当前玩家的主要网络）
+     */
+    private static int executeInsertTagDefault(CommandContext<CommandSourceStack> ctx,
+                                               TagKey<Item> tag, long count) {
+        CommandSourceStack source = ctx.getSource();
+        
+        // 检查OP权限
+        if (!PermissionChecker.checkOpPermission(source)) {
+            return 0;
+        }
+        
+        // 获取执行者玩家
+        ServerPlayer executor = source.getPlayer();
+        if (executor == null) {
+            source.sendFailure(OutputFormatter.createError("error.player_required"));
+            return 0;
+        }
+        
+        // 获取当前玩家的主要网络
+        DimensionsNet primaryNet = DimensionsNet.getPrimaryNetFromPlayer(executor);
+        if (primaryNet == null) {
+            source.sendFailure(OutputFormatter.createError("error.not_in_network"));
+            return 0;
+        }
+        
+        return executeInsertTagInternal(source, primaryNet, primaryNet.getId(), tag, count);
+    }
+    
+    /**
+     * 执行插入标签物品命令
+     */
+    private static int executeInsertTag(CommandContext<CommandSourceStack> ctx, int netId,
+                                        TagKey<Item> tag, long count) {
+        CommandSourceStack source = ctx.getSource();
+        
+        // 检查OP权限
+        if (!PermissionChecker.checkOpPermission(source)) {
+            return 0;
+        }
+        
+        // 检查网络是否存在
+        DimensionsNet net = PermissionChecker.checkNetworkExists(source, netId);
+        if (net == null) {
+            return 0;
+        }
+        
+        return executeInsertTagInternal(source, net, netId, tag, count);
+    }
+    
+    /**
+     * 内部：按物品标签批量插入，结果以列表逐种输出。
+     * 标签内每种物品各插入 count 个；单种空间不足时跳过该种（不影响其他种类）。
+     * 输出：标题行 + 每种物品一行（成功显示物品与数量，跳过显示原因）+ 汇总行。
+     */
+    private static int executeInsertTagInternal(CommandSourceStack source, DimensionsNet net,
+                                                int netId, TagKey<Item> tag, long count) {
+        // 检查数量是否为正数
+        if (!PermissionChecker.checkAmountPositive(source, count)) {
+            return 0;
+        }
+        
+        // 收集标签内全部物品
+        List<Item> items = new ArrayList<>();
+        for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) {
+            items.add(holder.value());
+        }
+        if (items.isEmpty()) {
+            source.sendFailure(OutputFormatter.createError("error.tag_empty", tag.location().toString()));
+            return 0;
+        }
+        
+        String tagName = "#" + tag.location();
+        int insertedTypes = 0;
+        int skippedTypes = 0;
+        long totalInserted = 0;
+        
+        // 标题行
+        source.sendSuccess(() -> OutputFormatter.createTitle("network.insert.tag.title", netId, tagName), false);
+        
+        // 逐种物品插入并输出列表行
+        for (Item item : items) {
+            ItemStack stack = new ItemStack(item);
+            ItemStackKey key = new ItemStackKey(stack.copyWithCount(1));
+            
+            // 空间不足的种类跳过，不影响其他种类
+            if (!NetworkUtils.hasEnoughStorageForItem(net, key, count)) {
+                skippedTypes++;
+                source.sendSuccess(() -> OutputFormatter.createWarning("network.insert.tag.line.skipped",
+                        stack.getHoverName().getString()), false);
+                continue;
+            }
+            
+            KeyAmount remaining = net.getUnifiedStorage().insert(key, count, false);
+            long inserted = count - remaining.amount();
+            if (inserted > 0) {
+                insertedTypes++;
+                totalInserted += inserted;
+            }
+            if (remaining.amount() > 0) {
+                skippedTypes++;
+            }
+            
+            // 成功行（物品名 x实际插入数量）；未插入任何数量时按跳过提示
+            final long shown = inserted;
+            if (inserted > 0) {
+                source.sendSuccess(() -> OutputFormatter.createItemDisplay(stack, shown), false);
+            } else {
+                source.sendSuccess(() -> OutputFormatter.createWarning("network.insert.tag.line.skipped",
+                        stack.getHoverName().getString()), false);
+            }
+        }
+        
+        if (totalInserted <= 0) {
+            source.sendFailure(OutputFormatter.createError("error.insufficient_storage"));
+            return 0;
+        }
+        
+        // 标记网络为脏数据
+        net.setDirty();
+        
+        // 汇总行
+        final int okTypes = insertedTypes;
+        final int skipTypes = skippedTypes;
+        final long sumInserted = totalInserted;
+        source.sendSuccess(() -> OutputFormatter.createSuccess("network.insert.tag.summary",
+                okTypes, items.size(), count, sumInserted, skipTypes), false);
         
         return 1;
     }

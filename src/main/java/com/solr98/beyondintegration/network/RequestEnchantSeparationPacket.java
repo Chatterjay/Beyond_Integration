@@ -29,8 +29,8 @@ public class RequestEnchantSeparationPacket {
             if (player == null) return;
             DimensionsNet net = DimensionsNet.getPrimaryNetFromPlayer(player);
             if (net == null) return;
-            boolean enabled = !(net instanceof EnchantSeparationAccessor ea)
-                    || ea.beyond$isEnchantSeparationEnabled();
+            boolean enabled = net instanceof EnchantSeparationAccessor ea
+                    && ea.beyond$isEnchantSeparationEnabled();
             PacketHandler.sendToPlayer(player, new EnchantSeparationSyncPacket(enabled));
         });
         ctx.get().setPacketHandled(true);

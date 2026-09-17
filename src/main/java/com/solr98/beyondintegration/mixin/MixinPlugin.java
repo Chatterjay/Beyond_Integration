@@ -35,16 +35,37 @@ public class MixinPlugin implements IMixinConfigPlugin {
             return modList.isLoaded("tacz");
         }
         if (targetClassName.startsWith("com.mafuyu404.taczaddon.")) {
-            // taczaddon 兼容仅针对 1.1.8.1（字节码结构已验证）；其他版本回归不注入
+            // taczaddon 自 1.1.8.1 起大幅重构；接受 1.1.8.1 起的所有版本
+            // （1.1.8.1 / 1.1.8.1-hotfix* / 1.1.8.2 等），旧版 1.1.8 不注入
             return modList.isLoaded("taczaddon")
-                    && "1.1.8.1".equals(modList.getModContainerById("taczaddon")
-                    .map(c -> c.getModInfo().getVersion().toString())
-                    .orElse(""));
+                    && modList.getModContainerById("taczaddon")
+                    .map(c -> isTaczAddonCompatible(c.getModInfo().getVersion().toString()))
+                    .orElse(false);
         }
         if (targetClassName.startsWith("com.atsuishio.superbwarfare.")) {
             return modList.isLoaded("superbwarfare");
         }
+        if (targetClassName.startsWith("mezz.jei.")) {
+            // JEI 集成（物品数量角标/点击取物品）：仅 JEI 加载时应用；
+            // 检测到 rs_integration（RI）时让路禁用，避免与其同类功能冲突
+            return modList.isLoaded("jei") && !modList.isLoaded("rs_integration");
+        }
+        if (targetClassName.startsWith("dev.ftb.mods.ftbquests.")) {
+            // FTB Quests 集成（网络物品计入任务/消耗型补足/奖励进网络）：仅 FTB Quests 加载时应用；
+            // 检测到 rs_integration（RI）时让路禁用，避免与其同类功能冲突
+            return modList.isLoaded("ftbquests") && !modList.isLoaded("rs_integration");
+        }
         return true;
+    }
+
+    /**
+     * taczaddon 版本兼容判定：接受 1.1.8.1 起的所有重构版本。
+     * 例：1.1.8.1 / 1.1.8.1-hotfix6 / 1.1.8.2；排除旧版 1.1.8。
+     */
+    private static boolean isTaczAddonCompatible(String version) {
+        if (version == null || version.isEmpty()) return false;
+        return version.startsWith("1.1.8-fix")
+                || version.matches("1\\.1\\.8\\.[0-9]+.*");
     }
 
     @Override

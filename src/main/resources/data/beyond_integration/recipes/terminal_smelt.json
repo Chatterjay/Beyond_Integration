@@ -1,0 +1,9 @@
+{
+  "type": "beyond_integration:terminal_smelt",
+  "group": "",
+  "category": "misc",
+  "ingredient": { "item": "beyonddimensions:net_terminal_item" },
+  "result": { "item": "beyonddimensions:net_terminal_item" },
+  "experience": 0.0,
+  "cookingtime": 200
+}

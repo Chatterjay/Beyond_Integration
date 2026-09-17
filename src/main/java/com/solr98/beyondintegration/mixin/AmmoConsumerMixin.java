@@ -78,9 +78,12 @@ public abstract class AmmoConsumerMixin {
             handleConsumeItem(entity, loads, cir);
         } else if (type == AmmoConsumer.AmmoConsumeType.ENERGY) {
             // 能量武器射击触发点：原逻辑会从武器 FE 槽扣能量；
-            // 此处先尝试从玩家主网络预充武器能量（网络有 FE 时武器常满，射击不中断）
+            // 此处先为玩家装备位（含手持武器）从主网络补能（网络有 FE 时武器常满，射击不中断）
             if (entity instanceof ServerPlayer player) {
-                com.solr98.beyondintegration.feature.ammo.sw.EnergyAmmoChargeHandler.chargeMainHand(player);
+                com.solr98.beyondintegration.feature.ammo.sw.EnergyAmmoChargeHandler.chargePlayer(player);
+            } else if (entity instanceof LivingEntity living) {
+                // 女仆开火：从其绑定网络（饰品/女仆饰物背包中的终端）为装备位补能
+                com.solr98.beyondintegration.feature.ammo.sw.EnergyAmmoChargeHandler.chargeMaid(living);
             }
         }
     }

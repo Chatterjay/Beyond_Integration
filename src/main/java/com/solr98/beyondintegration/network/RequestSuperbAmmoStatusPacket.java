@@ -42,8 +42,8 @@ public class RequestSuperbAmmoStatusPacket {
             }
 
             long energy = net.getUnifiedStorage().getStackByKey(EnergyStackKey.INSTANCE).amount();
-            boolean enchantSep = !(net instanceof EnchantSeparationAccessor ea)
-                    || ea.beyond$isEnchantSeparationEnabled();
+            boolean enchantSep = net instanceof EnchantSeparationAccessor ea
+                    && ea.beyond$isEnchantSeparationEnabled();
             String netName = net instanceof NetworkNameProvider nnp ? nnp.getCustomName() : "";
             PacketHandler.sendToPlayer(player, new SuperbAmmoStatusResponsePacket(
                     net.getId(), netName, energy, enchantSep, fullMap, null));

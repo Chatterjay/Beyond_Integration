@@ -66,6 +66,9 @@ public class BeyondIntegration {
         // Register menu types
         ModMenus.register(modEventBus);
 
+        // Register recipe serializers (furnace terminal smelt-all)
+        com.solr98.beyondintegration.init.ModRecipes.register(modEventBus);
+
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
 
@@ -76,24 +79,80 @@ public class BeyondIntegration {
 
         // Register Cloth Config screen (client-only)
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> ClientRegistrar::register);
+
+        // 配置文件注释统一：监听配置加载/重载缓存 COMMON 配置，加载完成后按需重写
+        modEventBus.addListener(this::onModConfigLoading);
+        modEventBus.addListener(this::onModConfigReloading);
+        modEventBus.addListener(this::onLoadComplete);
     }
 
     /** common 阶段初始化：按依赖条件注册全部功能处理器与网络包 */
     private void commonSetup(final FMLCommonSetupEvent event) {
+        // 注册充电平台实现（能量 capability / 模组判定 / 属性判定）
+        com.solr98.beyondintegration.core.energy.ChargePlatform.set(
+                new com.solr98.beyondintegration.core.energy.ForgeChargePlatform());
         registerItemBlacklistHandler();
         registerEnchantmentBookSeparator();
         registerAmmoBoxExtractHandler();
         registerSuperbAmmoInsertHandler();
         registerSwAmmoPollingService();
+        // 通用装备位网络充电（可充电盔甲 + 主副手工具/武器），独立于 SW 轮询按配置间隔执行
+        MinecraftForge.EVENT_BUS.addListener((TickEvent.ServerTickEvent tickEvent) -> {
+            if (tickEvent.phase != TickEvent.Phase.END) return;
+            com.solr98.beyondintegration.feature.ammo.sw.EnergyAmmoChargeHandler
+                    .tick(net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer());
+        });
         registerVehicleInteractHandler();
         MinecraftForge.EVENT_BUS.register(new com.solr98.beyondintegration.feature.totem.AutoTotemHandler());
+        // setHealth 复活实现（事件版 + Mixin 版）：配置关闭时不注册处理器（类不加载，零事件开销）
+        if (CommandConfig.reviveEventEnabled() || CommandConfig.reviveMixinEnabled()) {
+            MinecraftForge.EVENT_BUS.register(new com.solr98.beyondintegration.feature.revive.ReviveFingerprintHandler());
+            LOGGER.info("Registered ReviveFingerprintHandler");
+        }
+        if (CommandConfig.reviveEventEnabled()) {
+            MinecraftForge.EVENT_BUS.register(new com.solr98.beyondintegration.feature.revive.SetHealthReviveHandler());
+            LOGGER.info("Registered SetHealthReviveHandler (event)");
+        }
         if (ModList.get().isLoaded("touhou_little_maid")) {
             MinecraftForge.EVENT_BUS.register(new com.solr98.beyondintegration.feature.totem.MaidAutoTotemHandler());
+            MinecraftForge.EVENT_BUS.register(new com.solr98.beyondintegration.maid.MaidEnergyChargeHandler());
             LOGGER.info("Registered MaidAutoTotemHandler");
         }
         com.solr98.beyondintegration.network.PacketHandler.register();
         registerTaczTrackerDrain();
         registerSubscriptionHubCleanup();
+    }
+
+    /** 缓存的 COMMON 配置对象（供加载完成后统一注释使用）。 */
+    private net.minecraftforge.fml.config.ModConfig commonConfig;
+    /** 缓存的 CLIENT 配置对象（供加载完成后统一注释使用）。 */
+    private net.minecraftforge.fml.config.ModConfig clientConfig;
+
+    /** 配置加载时记录 COMMON/CLIENT 配置实例。 */
+    private void onModConfigLoading(net.minecraftforge.fml.event.config.ModConfigEvent.Loading event) {
+        trackConfig(event.getConfig());
+    }
+
+    /** 配置重载时记录 COMMON/CLIENT 配置实例。 */
+    private void onModConfigReloading(net.minecraftforge.fml.event.config.ModConfigEvent.Reloading event) {
+        trackConfig(event.getConfig());
+    }
+
+    private void trackConfig(net.minecraftforge.fml.config.ModConfig config) {
+        if (!MODID.equals(config.getModId())) {
+            return;
+        }
+        if (config.getType() == net.minecraftforge.fml.config.ModConfig.Type.COMMON) {
+            this.commonConfig = config;
+        } else if (config.getType() == net.minecraftforge.fml.config.ModConfig.Type.CLIENT) {
+            this.clientConfig = config;
+        }
+    }
+
+    /** 模组加载完成后：COMMON/CLIENT 配置注释语言与 command_language 不一致时重写（值保持不变）。 */
+    private void onLoadComplete(net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent event) {
+        com.solr98.beyondintegration.core.config.ConfigCommentLang.saveIfLanguageChanged(this.commonConfig);
+        com.solr98.beyondintegration.core.config.ConfigCommentLang.saveIfLanguageChanged(this.clientConfig);
     }
 
     /** 注册统一订阅中心的全局清理（网络销毁 / 服务器停止时批量退订全部 BD 订阅） */

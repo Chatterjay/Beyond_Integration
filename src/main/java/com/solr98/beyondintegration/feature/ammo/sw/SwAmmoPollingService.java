@@ -46,8 +46,6 @@ public class SwAmmoPollingService {
         if (event.phase != TickEvent.Phase.END) return;
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
-        // 能量弹药网络充电（独立开关/间隔，不受轮询开关影响）
-        EnergyAmmoChargeHandler.tick(server);
         if (!CommandConfig.swAmmoPollEnabled()) return;
         int interval = CommandConfig.swAmmoPollIntervalTicks();
         if (interval <= 0) return;

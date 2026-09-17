@@ -168,11 +168,11 @@ public class DimensionsAnvilMenu extends DimensionsStorageMenu implements IClean
         });
     }
 
-    // ---- copy 原版等级→点数公式（Player.getXpNeededForNextLevel 逻辑）----
+    // ---- 原版等级→点数公式（对齐 Player.getXpNeededForNextLevel；1.20.1 与 1.21.1 相同）----
     private static int beyond$xpNeededForLevel(int level) {
-        if (level >= 30) return 62 + (level - 30) * 7;
-        if (level >= 15) return 17 + (level - 15) * 3;
-        return 17 + level * 2;
+        if (level >= 30) return 112 + (level - 30) * 9;
+        if (level >= 15) return 37 + (level - 15) * 5;
+        return 7 + level * 2;
     }
 
     // Apothic 语义（EnchantmentUtils.getTotalExperienceForLevel(cost)）：固定扣"从 0 级升到 cost 级"的总点数
@@ -349,8 +349,13 @@ public class DimensionsAnvilMenu extends DimensionsStorageMenu implements IClean
                                 flag2 = true;
                                 if (beyond$supportViolation) beyond$supportViolationCount++;
                                 if (!beyond$breakLevel) {
-                                    // 原版钳制附魔最高等级；PLUS/ADDITIVE 模式下解除
-                                    if (j2 > enchantment1.getMaxLevel()) j2 = enchantment1.getMaxLevel();
+                                    // 原版钳制附魔最高等级；PLUS/ADDITIVE 模式下解除。
+                                    // 有效上限：加载 Apotheosis 时取其配置上限
+                                    // （神化通过 coremod 仅重定向特定调用点，不含本 mod，需自行查询）。
+                                    // 限制仅作用于"有变化"的合并结果，且不把已有等级降到目标原等级以下
+                                    // （来源等级不高于目标时合并结果=原等级，超限已有附魔不会被削回上限）
+                                    int beyond$maxLevel = beyond$effectiveMaxLevel(enchantment1);
+                                    if (j2 > beyond$maxLevel) j2 = Math.max(beyond$maxLevel, i2);
                                 }
                                 map.put(enchantment1, j2);
                                 int k3 = 0;
@@ -438,6 +443,21 @@ public class DimensionsAnvilMenu extends DimensionsStorageMenu implements IClean
     // copy 原版 AnvilMenu.calculateIncreasedRepairCost
     public static int beyond$calculateIncreasedRepairCost(int oldRepairCost) {
         return oldRepairCost * 2 + 1;
+    }
+
+    /**
+     * 附魔有效等级上限：加载 Apotheosis 时经其 EnchHooks 取神化配置上限
+     * （神化通过 coremod 重定向原版调用点，本 mod 不在重定向范围内，需主动查询；
+     * EnchHooks 内部已处理神化附魔模块开关，配置未加载等异常回退原版）；
+     * 未加载/异常时退回原版 {@link Enchantment#getMaxLevel()}。
+     */
+    public static int beyond$effectiveMaxLevel(Enchantment ench) {
+        if (net.minecraftforge.fml.ModList.get().isLoaded("apotheosis")) {
+            try {
+                return dev.shadowsoffire.apotheosis.ench.asm.EnchHooks.getMaxLevel(ench);
+            } catch (Throwable ignored) {}
+        }
+        return ench.getMaxLevel();
     }
 
     // copy 原版 AnvilMenu.setItemName（含 validateName）

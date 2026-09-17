@@ -88,6 +88,14 @@ public class NetworkAmmoData extends SavedData {
             data.computeIfAbsent(netId, k -> new Attachment()).enchantSeparation = esTag.getBoolean(key);
         }
 
+        // 2b) energyCharge：网络 ID → 自动充电开关
+        CompoundTag ecTag = tag.getCompound("energyCharge");
+        for (String key : ecTag.getAllKeys()) {
+            int netId = parseNetId(key);
+            if (netId < 0) continue;
+            data.computeIfAbsent(netId, k -> new Attachment()).energyCharge = ecTag.getBoolean(key);
+        }
+
         // 3) creativeTypes：网络 ID → {"size": n, "0".."n-1": 弹药类型}
         CompoundTag ctTag = tag.getCompound("creativeTypes");
         for (String key : ctTag.getAllKeys()) {
@@ -107,6 +115,20 @@ public class NetworkAmmoData extends SavedData {
             int netId = parseNetId(key);
             if (netId < 0) continue;
             data.computeIfAbsent(netId, k -> new Attachment()).taczCreativeTypeCounts.put("*", 1);
+        }
+
+        // 5) workstationActivation：网络 ID → {"size": n, "0".."n-1": 工作台ID}
+        CompoundTag waTag = tag.getCompound("workstationActivation");
+        for (String key : waTag.getAllKeys()) {
+            int netId = parseNetId(key);
+            if (netId < 0) continue;
+            CompoundTag perNet = waTag.getCompound(key);
+            int size = perNet.getInt("size");
+            Attachment att = data.computeIfAbsent(netId, k -> new Attachment());
+            for (int i = 0; i < size; i++) {
+                String id = perNet.getString(String.valueOf(i));
+                if (!id.isEmpty()) att.activatedWorkstations.add(id);
+            }
         }
 
         if (instance == null) instance = new NetworkAmmoData();
@@ -169,6 +191,13 @@ public class NetworkAmmoData extends SavedData {
         }
         tag.put("enchantSeparation", esTag);
 
+        // 2b) energyCharge：网络 ID → 自动充电开关
+        CompoundTag ecTag = new CompoundTag();
+        for (var entry : data.entrySet()) {
+            ecTag.putBoolean(String.valueOf(entry.getKey()), entry.getValue().energyCharge);
+        }
+        tag.put("energyCharge", ecTag);
+
         CompoundTag iesTag = new CompoundTag();
         for (var entry : data.entrySet()) {
         }
@@ -195,6 +224,19 @@ public class NetworkAmmoData extends SavedData {
             }
         }
         tag.put("creativeAllType", catTag);
+
+        // 5) workstationActivation：网络 ID → {"size": n, "0".."n-1": 工作台ID}
+        CompoundTag waTag = new CompoundTag();
+        for (var entry : data.entrySet()) {
+            CompoundTag perNet = new CompoundTag();
+            int idx = 0;
+            for (String id : entry.getValue().activatedWorkstations) {
+                perNet.putString(String.valueOf(idx++), id);
+            }
+            perNet.putInt("size", idx);
+            waTag.put(String.valueOf(entry.getKey()), perNet);
+        }
+        tag.put("workstationActivation", waTag);
         return tag;
     }
 
@@ -230,8 +272,12 @@ public class NetworkAmmoData extends SavedData {
         private final Map<String, Long> superbAmmo = new HashMap<>();
         /** TACZ 创造弹药箱记录（弹药ID -> 数量，"*" 表示全类型创造） */
         private final Map<String, Integer> taczCreativeTypeCounts = new HashMap<>();
-        /** 附魔分离开关（默认开启） */
-        private boolean enchantSeparation = true;
+        /** 附魔分离开关（默认关闭） */
+        private boolean enchantSeparation = false;
+        /** 自动充电开关（网络级，默认开启） */
+        private boolean energyCharge = true;
+        /** 已献祭激活的工作台 ID 集合（网络级，默认空=全部未激活） */
+        private final java.util.Set<String> activatedWorkstations = new java.util.HashSet<>();
         /** 附魔物品(装备)分离开关（默认开启） */
 
         /** 获取 SW 虚拟弹药表 */
@@ -247,6 +293,12 @@ public class NetworkAmmoData extends SavedData {
         public boolean isEnchantSeparation() { return enchantSeparation; }
         /** 设置附魔分离开关 */
         public void setEnchantSeparation(boolean v) { this.enchantSeparation = v; }
+        /** 是否启用自动充电 */
+        public boolean isEnergyCharge() { return energyCharge; }
+        /** 设置自动充电开关 */
+        public void setEnergyCharge(boolean v) { this.energyCharge = v; }
+        /** 已献祭激活的工作台 ID 集合 */
+        public java.util.Set<String> getActivatedWorkstations() { return activatedWorkstations; }
         /** 是否启用附魔物品(装备)分离 */
         /** 设置附魔物品(装备)分离开关 */
     }

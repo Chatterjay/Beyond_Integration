@@ -71,6 +71,51 @@ public class PacketHandler {
                 RequestEnchantSeparationPacket::decode,
                 RequestEnchantSeparationPacket::handle);
 
+        INSTANCE.registerMessage(id++, ToggleEnergyChargePacket.class,
+                ToggleEnergyChargePacket::encode,
+                ToggleEnergyChargePacket::decode,
+                ToggleEnergyChargePacket::handle);
+
+        INSTANCE.registerMessage(id++, EnergyChargeSyncPacket.class,
+                EnergyChargeSyncPacket::encode,
+                EnergyChargeSyncPacket::decode,
+                EnergyChargeSyncPacket::handle);
+
+        INSTANCE.registerMessage(id++, RequestEnergyChargePacket.class,
+                RequestEnergyChargePacket::encode,
+                RequestEnergyChargePacket::decode,
+                RequestEnergyChargePacket::handle);
+
+        INSTANCE.registerMessage(id++, RefreshEnchantPacket.class,
+                RefreshEnchantPacket::encode,
+                RefreshEnchantPacket::decode,
+                RefreshEnchantPacket::handle);
+
+        INSTANCE.registerMessage(id++, EnchantCluesPacket.class,
+                EnchantCluesPacket::encode,
+                EnchantCluesPacket::decode,
+                EnchantCluesPacket::handle);
+
+        INSTANCE.registerMessage(id++, ActivateWorkstationPacket.class,
+                ActivateWorkstationPacket::encode,
+                ActivateWorkstationPacket::decode,
+                ActivateWorkstationPacket::handle);
+
+        INSTANCE.registerMessage(id++, RequestWorkstationActivationPacket.class,
+                RequestWorkstationActivationPacket::encode,
+                RequestWorkstationActivationPacket::decode,
+                RequestWorkstationActivationPacket::handle);
+
+        INSTANCE.registerMessage(id++, WorkstationActivationSyncPacket.class,
+                WorkstationActivationSyncPacket::encode,
+                WorkstationActivationSyncPacket::decode,
+                WorkstationActivationSyncPacket::handle);
+
+        INSTANCE.registerMessage(id++, ExtractNetworkItemPacket.class,
+                ExtractNetworkItemPacket::encode,
+                ExtractNetworkItemPacket::decode,
+                ExtractNetworkItemPacket::handle);
+
 
 
         if (ModList.get().isLoaded("superbwarfare")) {

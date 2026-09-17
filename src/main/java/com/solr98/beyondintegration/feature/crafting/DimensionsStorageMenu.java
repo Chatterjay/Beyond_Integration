@@ -44,9 +44,8 @@ public class DimensionsStorageMenu extends DimensionsNetMenu {
     // 通用清空：按方向归还自持容器（copy 原版实现）的物品
     protected void cleanSlotsFromContainer(boolean toStorage, net.minecraft.world.Container container, int[] idxs) {
         if (player.level().isClientSide()) return;
-        com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet net =
-                com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet.getPrimaryNetFromPlayer((net.minecraft.server.level.ServerPlayer) player);
-        var storage = net != null ? net.getUnifiedStorage() : null;
+        // 归还目标为当前打开的网络存储（对齐 BD cleanCraftSlots：用菜单 storage，而非玩家主网络）
+        var storage = this.storage;
         for (int idx : idxs) {
             ItemStack s = container.getItem(idx);
             if (s.isEmpty()) continue;
@@ -63,14 +62,17 @@ public class DimensionsStorageMenu extends DimensionsNetMenu {
                 if (!s.isEmpty()) player.drop(s, false);
             }
         }
+        // 归还后立即全量同步玩家背包：关闭界面瞬间差分同步可能漏发个别槽，导致客户端物品栏不显示
+        if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+            sp.inventoryMenu.broadcastFullState();
+        }
     }
 
     // 通用清空：按方向归还指定槽位（delegate 容器）物品
     protected void cleanSlotsFrom(boolean toStorage, net.minecraft.world.inventory.AbstractContainerMenu container, int[] idxs) {
         if (player.level().isClientSide()) return;
-        com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet net =
-                com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet.getPrimaryNetFromPlayer((net.minecraft.server.level.ServerPlayer) player);
-        var storage = net != null ? net.getUnifiedStorage() : null;
+        // 归还目标为当前打开的网络存储（对齐 BD cleanCraftSlots：用菜单 storage，而非玩家主网络）
+        var storage = this.storage;
         for (int idx : idxs) {
             ItemStack s = container.getSlot(idx).getItem();
             if (s.isEmpty()) continue;
@@ -86,6 +88,10 @@ public class DimensionsStorageMenu extends DimensionsNetMenu {
                 if (!s.isEmpty() && storage != null) { long left = storage.insert(new com.wintercogs.beyonddimensions.api.storage.key.impl.ItemStackKey(s), s.getCount(), false).amount(); s.setCount((int) left); }
                 if (!s.isEmpty()) player.drop(s, false);
             }
+        }
+        // 归还后立即全量同步玩家背包：关闭界面瞬间差分同步可能漏发个别槽，导致客户端物品栏不显示
+        if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+            sp.inventoryMenu.broadcastFullState();
         }
     }
 

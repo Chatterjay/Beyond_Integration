@@ -55,6 +55,8 @@ public final class BDNetworkCommands {
             .then(NetworkInfoCommand.register())
             // 网络插入命令
             .then(NetworkInsertCommand.register(context))
+            // 工作台献祭激活管理命令（重置/查询）
+            .then(NetworkWorkstationCommand.register())
             // 资源生成命令
             .then(NetworkGenerateResourcesCommand.register())
             // 给予终端命令

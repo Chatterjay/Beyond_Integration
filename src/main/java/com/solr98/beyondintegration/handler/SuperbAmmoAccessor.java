@@ -12,4 +12,6 @@ public interface SuperbAmmoAccessor {
     Map<String, Long> getSuperbAmmo();
     /** 设置弹药数据映射。 */
     void setSuperbAmmo(Map<String, Long> map);
+    /** 延迟补建存储增量订阅（加载结束后安全时机；默认无操作）。 */
+    default void beyond$ensureDeltaHook() {}
 }

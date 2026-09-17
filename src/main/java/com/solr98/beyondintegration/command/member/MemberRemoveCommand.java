@@ -150,7 +150,7 @@ public class MemberRemoveCommand {
             
             // 检查是否是网络所有者（不能移除所有者）
             if (net.isOwner(playerUuid)) {
-                source.sendFailure(Component.translatable("message.beyond_integration.cannot_remove_owner"));
+                source.sendFailure(CommandLang.component("error.cannot_remove_owner"));
                 return false;
             }
             

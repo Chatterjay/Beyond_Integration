@@ -82,6 +82,9 @@ public final class BdSubscriptionHub {
 
     /**
      * 订阅指定网络的 storage delta 事件（按网络 ID）。
+     * <p>⚠ 危险：内部经 {@code DimensionsNet.getNetFromId} 取网络；若在存档反序列化期间
+     * （如 UnifiedStorageBeforeInsertHandler 钩子链中）调用，会重入 {@code DimensionsNet.load} 造成
+     * StackOverflowError。加载期一律使用 {@link #subscribe(DimensionsNet, Object, DeltaHandler)} 对象重载。
      *
      * @return 订阅句柄；网络不存在或参数非法返回 null
      */

@@ -28,6 +28,8 @@ public class ModMenus {
     public static final RegistryObject<MenuType<DimensionsSmithMenu>> SMITH = MENU_TYPES.register("smith",()->IForgeMenuType.create(DimensionsSmithMenu::new));
     // 合成台菜单
     public static final RegistryObject<MenuType<DimensionsCraftMenu>> CRAFT = MENU_TYPES.register("craft",()->IForgeMenuType.create(DimensionsCraftMenu::new));
+    // 附魔台菜单（原版增强：功率配置/升级覆盖/预览刷新）
+    public static final RegistryObject<MenuType<DimensionsEnchantMenu>> ENCHANT = MENU_TYPES.register("enchant",()->IForgeMenuType.create(DimensionsEnchantMenu::new));
     // 注册到事件总线
     public static void register(IEventBus b){MENU_TYPES.register(b);}
 }

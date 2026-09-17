@@ -50,7 +50,7 @@ public class DimensionsStorageGUI<T extends DimensionsStorageMenu> extends Dimen
     }
 
     // ═══ 工作站面板右上角操作按钮（仅工作站界面）：清空到背包 / 清空到网络 / 关闭归还方向 ═══
-    // 渲染在工作站面板顶部（gy+2，同 BD），8x8 紧贴排列（步进 8）、右对齐留 8px
+    // 渲染在工作站面板顶部（gy+2，同 BD），8x8 按钮、间隔 1px（步进 9）、右对齐留 8px
     /** 归还方向：物品清空后回到背包 或 回到网络 */
     private enum ReturnMode { INV, STORAGE }
     /** 归还方向切换按钮（两态：背包 / 网络） */
@@ -61,21 +61,25 @@ public class DimensionsStorageGUI<T extends DimensionsStorageMenu> extends Dimen
         if (!(this instanceof DimensionsCraftGUI || this instanceof DimensionsCutGUI
                 || this instanceof DimensionsSmithGUI || this instanceof DimensionsGrindGUI
                 || this instanceof DimensionsAnvilGUI)) return;
-        int bxInv = this.leftPos + 144; // 面板右缘 leftPos+176，留 8px：160+8 = 168 → 144/152/160
+        // 顺序（左→右）：清空到网络 → 清空到背包 → 归还方向；8x8 按钮、间隔 1px；
+        // 右边界对齐 168（面板右缘 176 留 8px）：142 / 151 / 160
+        int bxNet = this.leftPos + 142;
+        int bxInv = this.leftPos + 151;
+        int bxDir = this.leftPos + 160;
         int by = getGapY() + 2;
+
+        com.wintercogs.beyonddimensions.client.gui.widget.shared.IconButton clearToNet = new com.wintercogs.beyonddimensions.client.gui.widget.shared.IconButton(
+                bxNet, by, 8, 8, ResourceLocation.tryParse("beyonddimensions:textures/gui/sprites/widget/up_arrow.png"),
+                b -> PacketHandler.sendToServer(new com.solr98.beyondintegration.network.CleanWorkstationPacket(true)));
+        clearToNet.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("tooltip.beyond_integration.clean_to_net")));
 
         com.wintercogs.beyonddimensions.client.gui.widget.shared.IconButton clearToInv = new com.wintercogs.beyonddimensions.client.gui.widget.shared.IconButton(
                 bxInv, by, 8, 8, ResourceLocation.tryParse("beyonddimensions:textures/gui/sprites/widget/down_arrow.png"),
                 b -> PacketHandler.sendToServer(new com.solr98.beyondintegration.network.CleanWorkstationPacket(false)));
         clearToInv.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("tooltip.beyond_integration.clean_to_inv")));
 
-        com.wintercogs.beyonddimensions.client.gui.widget.shared.IconButton clearToNet = new com.wintercogs.beyonddimensions.client.gui.widget.shared.IconButton(
-                bxInv + 8, by, 8, 8, ResourceLocation.tryParse("beyonddimensions:textures/gui/sprites/widget/up_arrow.png"),
-                b -> PacketHandler.sendToServer(new com.solr98.beyondintegration.network.CleanWorkstationPacket(true)));
-        clearToNet.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("tooltip.beyond_integration.clean_to_net")));
-
         returnDirButton = new com.wintercogs.beyonddimensions.client.gui.widget.shared.StatusButton(
-                bxInv + 16, by, 8, 8, b -> {
+                bxDir, by, 8, 8, b -> {
             returnDirButton.toggleState();
             boolean toStorage = returnDirButton.currentState == ReturnMode.STORAGE;
             this.menu.setReturnDir(toStorage);
@@ -97,6 +101,9 @@ public class DimensionsStorageGUI<T extends DimensionsStorageMenu> extends Dimen
         addRenderableWidget(clearToInv);
         addRenderableWidget(clearToNet);
         addRenderableWidget(returnDirButton);
+        // 打开界面时按客户端持久化方向同步服务端（对齐 BD DimensionsCraftGUI.init 的 writeAndSendQuickData）
+        this.menu.setReturnDir(com.solr98.beyondintegration.ClientConfig.workstationReturnToStorage());
+        this.menu.writeAndSendQuickData();
     }
 
     /** 渲染背景：分段拼接 BD 网络纹理，随后渲染工作站面板与玩家背包 */

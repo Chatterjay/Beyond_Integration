@@ -41,6 +41,7 @@ public class ClientRegistrar {
             MenuScreens.register(ModMenus.GRIND.get(),DimensionsGrindGUI::new);
             MenuScreens.register(ModMenus.SMITH.get(),DimensionsSmithGUI::new);
             MenuScreens.register(ModMenus.CRAFT.get(),DimensionsCraftGUI::new);
+        MenuScreens.register(ModMenus.ENCHANT.get(),DimensionsEnchantGUI::new);
         });});
         FMLJavaModLoadingContext.get().getModEventBus().addListener((RegisterKeyMappingsEvent e)->{
             e.register(BDKeyBindings.OPEN_CRAFT);
@@ -48,6 +49,7 @@ public class ClientRegistrar {
             e.register(BDKeyBindings.OPEN_SMITH);
             e.register(BDKeyBindings.OPEN_GRIND);
             e.register(BDKeyBindings.OPEN_ANVIL);
+            e.register(BDKeyBindings.OPEN_ENCHANT);
         });
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e)->{
             if (e.phase == TickEvent.Phase.END) {

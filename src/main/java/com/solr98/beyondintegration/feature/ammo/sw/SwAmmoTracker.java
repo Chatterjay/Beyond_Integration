@@ -89,7 +89,7 @@ public class SwAmmoTracker {
         Map<String, Long> current = new HashMap<>(acc.getSuperbAmmo());
         long energy = net.getUnifiedStorage().getStackByKey(EnergyStackKey.INSTANCE).amount();
         String netName = net instanceof NetworkNameProvider nnp ? nnp.getCustomName() : "";
-        boolean enchantSep = !(net instanceof EnchantSeparationAccessor ea) || ea.beyond$isEnchantSeparationEnabled();
+        boolean enchantSep = net instanceof EnchantSeparationAccessor ea && ea.beyond$isEnchantSeparationEnabled();
 
         boolean metaChanged = !netName.equals(lastName == null ? "" : lastName) || enchantSep != lastEnchant;
 

@@ -16,6 +16,9 @@
     "GunDataCountMixin",
     "AmmoConsumerMixin",
     "DimensionsNetMixin",
+    "FtbItemRewardMixin",
+    "FtbItemTaskMixin",
+    "FtbPlayerInventorySummaryMixin",
     "VehicleNetMixin",
     "VehicleAmmoMixin",
     "VehicleEnergyChargeMixin",
@@ -23,7 +26,13 @@
     "LivingEntityReloadMixin",
     "BDMenuNetAccessor",
     "MaidCacheCleanupMixin",
-    "TaczaddonBdFilterMixin"
+    "NetedItemClickMixin",
+    "NetedItemMixin",
+    "XpExchangeSettingsMixin",
+    "XpUtilMixin",
+    "XpExchangeItemMixin",
+    "TaczaddonBdFilterMixin",
+    "LivingEntityTotemReviveMixin"
   ],
   "client": [
     "GunAnimationStateContextMixin",
@@ -34,12 +43,19 @@
     "TaczaddonCompatibilityServiceMixin",
     "AmmoBarOverlayMixin",
     "DimensionsNetGUIMixin",
+    "JeiFocusInputMixin",
+    "JeiIngredientElementMixin",
+    "LeftButtonSidebarMixin",
+    "RsIntegrationAutoEatMixin",
+    "RsIntegrationMachineHubMixin",
+    "RsAutoEatButtonGuardMixin",
     "DimensionsCraftGUIMixin",
     "DimensionsTerminalCraftGUIMixin",
     "VehicleHudNetworkMixin",
     "LocalPlayerShootMixin",
     "LocalPlayerReloadMixin",
     "ReloadKeyMixin",
-    "VehicleClientInteractMixin"
+    "VehicleClientInteractMixin",
+    "XpExchangeGUIMixin"
   ]
 }

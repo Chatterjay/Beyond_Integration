@@ -775,6 +775,14 @@ public class CommandLang
         register("error.item_required",
                 CommandConfig.Language.EN_US, "Item argument is required",
                 CommandConfig.Language.ZH_CN, "需要指定物品参数");
+
+        register("error.tag_required",
+                CommandConfig.Language.EN_US, "Item tag argument is required (use #namespace:path)",
+                CommandConfig.Language.ZH_CN, "需要指定物品标签参数（使用 #命名空间:路径）");
+
+        register("error.tag_empty",
+                CommandConfig.Language.EN_US, "Tag %s contains no items",
+                CommandConfig.Language.ZH_CN, "标签 %s 内没有任何物品");
         
         register("error.fluid_required",
                 CommandConfig.Language.EN_US, "Fluid argument is required",
@@ -866,6 +874,46 @@ public class CommandLang
         register("network.insert.item.success",
                 CommandConfig.Language.EN_US, "Inserted %s of %s into network %s",
                 CommandConfig.Language.ZH_CN, "已向网络 %3$s 插入 %1$s 个 %2$s");
+
+        register("network.insert.tag.title",
+                CommandConfig.Language.EN_US, "======== Insert Tag: network %1$s, tag %2$s ========",
+                CommandConfig.Language.ZH_CN, "========= 标签插入：网络 %1$s，标签 %2$s =========");
+
+        register("network.insert.tag.line.skipped",
+                CommandConfig.Language.EN_US, "Skipped %s (insufficient storage)",
+                CommandConfig.Language.ZH_CN, "跳过 %s（空间不足）");
+
+        register("network.insert.tag.summary",
+                CommandConfig.Language.EN_US, "Inserted %1$s/%2$s types x %3$s each, total %4$s items (%5$s types skipped)",
+                CommandConfig.Language.ZH_CN, "成功插入 %1$s/%2$s 种物品，每种 %3$s 个，共 %4$s 个（跳过 %5$s 种）");
+
+        register("network.workstation.invalid_id",
+                CommandConfig.Language.EN_US, "Invalid workstation id: %s (valid: anvil, cut, grind, smith, enchant)",
+                CommandConfig.Language.ZH_CN, "无效的工作台 ID：%s（可用：anvil、cut、grind、smith、enchant）");
+
+        register("network.workstation.reset.one",
+                CommandConfig.Language.EN_US, "Reset workstation activation for %2$s on network %1$s",
+                CommandConfig.Language.ZH_CN, "已重置网络 %1$s 的 %2$s 工作台激活状态");
+
+        register("network.workstation.reset.all",
+                CommandConfig.Language.EN_US, "Reset all workstation activations on network %1$s (%2$s: %3$s)",
+                CommandConfig.Language.ZH_CN, "已重置网络 %1$s 的全部工作台激活状态（%2$s 个：%3$s）");
+
+        register("network.workstation.reset.none",
+                CommandConfig.Language.EN_US, "Workstation %2$s is not activated on network %1$s",
+                CommandConfig.Language.ZH_CN, "网络 %1$s 的 %2$s 工作台当前未激活");
+
+        register("network.workstation.reset.all_none",
+                CommandConfig.Language.EN_US, "No workstations are activated on network %s",
+                CommandConfig.Language.ZH_CN, "网络 %s 没有已激活的工作台");
+
+        register("network.info.workstation",
+                CommandConfig.Language.EN_US, "Activated workstations: %s",
+                CommandConfig.Language.ZH_CN, "已激活工作台：%s");
+
+        register("network.info.workstation_none",
+                CommandConfig.Language.EN_US, "Activated workstations: none",
+                CommandConfig.Language.ZH_CN, "已激活工作台：无");
         
         register("network.insert.fluid.success",
                 CommandConfig.Language.EN_US, "Inserted %s mB of %s into network %s",
@@ -903,6 +951,65 @@ public class CommandLang
         register("error.insert_failed",
                 CommandConfig.Language.EN_US, "Insertion failed, %s remaining",
                 CommandConfig.Language.ZH_CN, "插入失败，剩余 %s 个");
+
+        // 传输按钮文本
+        register("button.accept",
+                CommandConfig.Language.EN_US, "Accept",
+                CommandConfig.Language.ZH_CN, "接受");
+
+        register("button.deny",
+                CommandConfig.Language.EN_US, "Deny",
+                CommandConfig.Language.ZH_CN, "拒绝");
+
+        register("button.cancel",
+                CommandConfig.Language.EN_US, "Cancel",
+                CommandConfig.Language.ZH_CN, "取消");
+
+        register("button.hover.accept",
+                CommandConfig.Language.EN_US, "Click to accept",
+                CommandConfig.Language.ZH_CN, "点击接受");
+
+        register("button.hover.deny",
+                CommandConfig.Language.EN_US, "Click to deny",
+                CommandConfig.Language.ZH_CN, "点击拒绝");
+
+        register("button.hover.cancel",
+                CommandConfig.Language.EN_US, "Click to cancel",
+                CommandConfig.Language.ZH_CN, "点击取消");
+
+        register("error.feature_removed",
+                CommandConfig.Language.EN_US, "Feature has been removed: %s",
+                CommandConfig.Language.ZH_CN, "功能已移除: %s");
+
+        // 网络名称显示
+        register("network.info.name_label",
+                CommandConfig.Language.EN_US, "Network Name: ",
+                CommandConfig.Language.ZH_CN, "网络名称: ");
+
+        register("network.list.name",
+                CommandConfig.Language.EN_US, "Name",
+                CommandConfig.Language.ZH_CN, "名称");
+
+        register("network.list.name.none",
+                CommandConfig.Language.EN_US, "(Unnamed)",
+                CommandConfig.Language.ZH_CN, "(未命名)");
+
+        register("network.transfer.insufficient_storage",
+                CommandConfig.Language.EN_US, "Insufficient storage space in network",
+                CommandConfig.Language.ZH_CN, "网络存储空间不足");
+
+        // 命令错误消息（跟随 command_language 配置）
+        register("error.no_primary_network",
+                CommandConfig.Language.EN_US, "You don't have a primary network",
+                CommandConfig.Language.ZH_CN, "你没有主网络");
+
+        register("error.execute_failed",
+                CommandConfig.Language.EN_US, "Execution failed: %s",
+                CommandConfig.Language.ZH_CN, "执行失败: %s");
+
+        register("error.cannot_remove_owner",
+                CommandConfig.Language.EN_US, "Cannot remove network owner",
+                CommandConfig.Language.ZH_CN, "不能移除网络所有者");
 
     }
 
