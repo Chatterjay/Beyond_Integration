@@ -82,24 +82,9 @@
       <option name="url" value="https://maven.createmod.net" />
     </remote-repository>
     <remote-repository>
-      <option name="id" value="maven8" />
-      <option name="name" value="maven8" />
+      <option name="id" value="maven10" />
+      <option name="name" value="maven10" />
       <option name="url" value="https://maven.aliyun.com/repository/public" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="SpongePowered" />
-      <option name="name" value="SpongePowered" />
-      <option name="url" value="https://repo.spongepowered.org/repository/maven-public/" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="maven" />
-      <option name="name" value="maven" />
-      <option name="url" value="https://www.cursemaven.com" />
-    </remote-repository>
-    <remote-repository>
-      <option name="id" value="maven4" />
-      <option name="name" value="maven4" />
-      <option name="url" value="https://maven.minecraftforge.net/" />
     </remote-repository>
   </component>
 </project>

@@ -12,6 +12,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Tacz 弹药计数请求包（客户端 → 服务端）。
+ * 按弹药 ID 查询玩家各网络中的弹药总量，服务端 handle 统计后以
+ * {@link AmmoCountResponsePacket} 回复；无结果时回传 netId=-1 的空条目。
+ * TYPE: beyond_integration:request_ammo_count；STREAM_CODEC 读写 ammoId 与 quick 标志。
+ */
 public record RequestAmmoCountPacket(ResourceLocation ammoId, boolean quick) implements CustomPacketPayload {
     public static final Type<RequestAmmoCountPacket> TYPE = new Type<>(ResourceLocation.parse(BeyondIntegration.MODID + ":request_ammo_count"));
     public static final StreamCodec<FriendlyByteBuf, RequestAmmoCountPacket> STREAM_CODEC = new StreamCodec<>() {
@@ -25,6 +31,7 @@ public record RequestAmmoCountPacket(ResourceLocation ammoId, boolean quick) imp
     };
 
     public static void handle(final RequestAmmoCountPacket packet, final IPayloadContext context) {
+        // 服务端处理：遍历主网络与全部网络统计弹药，再回发响应包
         context.enqueueWork(() -> {
             var player = context.player();
             if (!(player instanceof net.minecraft.server.level.ServerPlayer sp)) return;
@@ -55,3 +62,4 @@ public record RequestAmmoCountPacket(ResourceLocation ammoId, boolean quick) imp
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
+

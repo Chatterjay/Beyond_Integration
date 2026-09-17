@@ -11,6 +11,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 网络物品数量全量推送包（服务端 → 客户端）。
+ * 携带网络内物品计数（key 为 "配方ID|槽位"）、网络信息及合成结果；
+ * 由 handle 更新客户端 {@link NetworkItemCache} 并在有成品时弹出合成提示 {@link CraftToast}。
+ * TYPE: beyond_integration:network_item_counts；STREAM_CODEC 按 replace 标志决定是否覆盖旧缓存。
+ */
 public record NetworkItemCountsPacket(Map<String, Long> counts, boolean replace, boolean hasNetwork, int netId,
                                        String netName, ItemStack resultItem, int resultCount) implements CustomPacketPayload {
     public static final Type<NetworkItemCountsPacket> TYPE = new Type<>(ResourceLocation.parse("beyond_integration:network_item_counts"));
@@ -44,11 +50,13 @@ public record NetworkItemCountsPacket(Map<String, Long> counts, boolean replace,
         }
     };
 
+    // 便捷构造：无合成结果时使用空 ItemStack 与数量 0
     public NetworkItemCountsPacket(Map<String, Long> counts, boolean replace, boolean hasNetwork, int netId, String netName) {
         this(counts, replace, hasNetwork, netId, netName, ItemStack.EMPTY, 0);
     }
 
     public static void handle(final NetworkItemCountsPacket packet, final IPayloadContext context) {
+        // 客户端处理：覆盖物品缓存，若有合成结果则显示合成提示
         context.enqueueWork(() -> {
             NetworkItemCache.setAll(packet.counts, packet.hasNetwork, packet.netId, packet.netName);
             if (!packet.resultItem.isEmpty())
@@ -58,3 +66,4 @@ public record NetworkItemCountsPacket(Map<String, Long> counts, boolean replace,
 
     @Override public @NotNull Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
+

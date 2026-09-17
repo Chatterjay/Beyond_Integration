@@ -8,6 +8,12 @@ plugins {
 version = mod_version
 group = mod_group_id
 
+// jar 名称格式与 1.20.1-FORGE 保持一致：beyond_integration-<mc>-<loader>-<version>.jar
+// 注意：NeoGradle moddev 会覆盖 base.archivesName，故直接在 jar 任务上强制命名
+tasks.named('jar', Jar) {
+    archiveFileName = "${mod_id}-${minecraft_version}-neoforge-${mod_version}.jar"
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -158,7 +164,7 @@ dependencies {
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
-    implementation "curse.maven:beyond-dimensions-1222890:8133342"
+    implementation "curse.maven:beyond-dimensions-1222890:8812500"
 
     implementation "curse.maven:geckolib-388172:7707149"
     implementation "curse.maven:sodium-394468:6382651"
@@ -177,7 +183,17 @@ dependencies {
     implementation "curse.maven:touhou-little-maid-355044:8061852"
     implementation "curse.maven:superb-warfare-1218165:8104860"
     implementation "curse.maven:tacz-1-21-1-1353462:8127849"
+    // taczaddon（可选兼容目标：枪械台容器源/计数/合成桥兼容，MixinPlugin 按版本门控）
+    implementation "curse.maven:tacz-addon-1238419:8836214"
     implementation "curse.maven:jade-324717:7545219"
+    implementation "curse.maven:placebo-283644:8463693"
+    implementation "curse.maven:apothic-enchanting-1063926:8469450"
+    implementation "curse.maven:apothic-attributes-898963:8502288"
+    implementation "curse.maven:apothic-spawners-986583:8469405"
+    implementation "curse.maven:apotheosis-313970:8564919"
+    implementation "curse.maven:ftb-library-forge-404465:8858846"
+    implementation "curse.maven:ftb-quests-forge-289412:8885017"
+    
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

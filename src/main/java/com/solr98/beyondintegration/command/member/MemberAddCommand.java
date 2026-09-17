@@ -14,8 +14,13 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.util.*;
 
+/**
+ * 成员添加命令：提供 /bdtools member addMembers / addManagers，
+ * 可将目标玩家批量添加为指定网络（或执行者主要网络）的成员/管理员。
+ */
 public class MemberAddCommand {
 
+    /** 注册 addMembers 命令（添加成员，支持 to 指定多个网络） */
     public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerAddMembers() {
         return Commands.literal("addMembers")
                 .then(Commands.argument("players", EntityArgument.players())
@@ -24,6 +29,7 @@ public class MemberAddCommand {
                                 .then(buildNetworkChain(5, false))));
     }
 
+    /** 注册 addManagers 命令（添加管理员，支持 to 指定多个网络） */
     public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerAddManagers() {
         return Commands.literal("addManagers")
                 .then(Commands.argument("players", EntityArgument.players())
@@ -32,6 +38,7 @@ public class MemberAddCommand {
                                 .then(buildNetworkChain(5, true))));
     }
 
+    /** 构建连续的网络 ID 参数链（最多 maxNetworks 个），逐级执行添加 */
     private static com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, ?> buildNetworkChain(int maxNetworks, boolean isManager) {
         var builder = Commands.argument("netId1", IntegerArgumentType.integer(0, 9999))
                 .executes(ctx -> executeAddMembers(ctx, isManager));
@@ -40,6 +47,7 @@ public class MemberAddCommand {
         return builder;
     }
 
+    /** 递归构建网络 ID 参数链的下一层 */
     private static com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, ?> buildNetworkChainRecursive(int current, int max, boolean isManager) {
         if (current > max) return null;
         var builder = Commands.argument("netId" + current, IntegerArgumentType.integer(0, 9999))
@@ -49,6 +57,7 @@ public class MemberAddCommand {
         return builder;
     }
 
+    /** 未指定网络时执行：将玩家添加到执行者的主要网络 */
     private static int executeAddMembersToDefault(CommandContext<CommandSourceStack> ctx, boolean isManager) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         if (!PermissionChecker.checkServerAvailable(source)) return 0;
@@ -79,6 +88,7 @@ public class MemberAddCommand {
         return sc[0];
     }
 
+    /** 指定网络时执行：将玩家批量添加到全部指定的网络（逐一校验权限） */
     private static int executeAddMembers(CommandContext<CommandSourceStack> ctx, boolean isManager) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         if (!PermissionChecker.checkServerAvailable(source)) return 0;
@@ -116,6 +126,7 @@ public class MemberAddCommand {
         return sc[0];
     }
 
+    /** 将单个玩家添加到网络；已是成员时仅按需补充管理员身份，返回是否发生添加 */
     private static boolean addPlayerToNetwork(CommandSourceStack source, DimensionsNet net, ServerPlayer player, boolean isManager) {
         try {
             UUID puid = player.getUUID();
@@ -133,3 +144,4 @@ public class MemberAddCommand {
         }
     }
 }
+

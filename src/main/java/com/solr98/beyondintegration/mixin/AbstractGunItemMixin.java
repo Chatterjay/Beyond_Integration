@@ -18,11 +18,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * 注入目标：TacZ 的 {@code AbstractGunItem}（枪械物品基类）。
+ * 目的：扩展枪械"能否装填/是否有库存弹药/弹药提取"的判断逻辑，使 FakePlayer、
+ * 网络终端（Beyond Dimensions）以及东方女仆也能使用网络中的弹药。
+ */
 @Mixin(targets = "com.tacz.guns.api.item.gun.AbstractGunItem", remap = false)
 public class AbstractGunItemMixin {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
+    // 拦截 canReload：原逻辑判定不可装填时，再根据射击者类型（FakePlayer/服务端玩家/客户端/女仆）检查网络弹药
     @Inject(method = "canReload", at = @At("RETURN"), cancellable = true)
     private void beyond$onCanReload(LivingEntity shooter, ItemStack gunItem, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue()) return;
@@ -49,6 +55,7 @@ public class AbstractGunItemMixin {
         }
     }
 
+    // 拦截 hasInventoryAmmo：与 canReload 相同思路，判定库存弹药时把网络弹药计入
     @Inject(method = "hasInventoryAmmo", at = @At("RETURN"), cancellable = true)
     private void beyond$onHasInventoryAmmo(LivingEntity shooter, ItemStack gun, boolean needCheckAmmo, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue()) return;
@@ -75,6 +82,7 @@ public class AbstractGunItemMixin {
         }
     }
 
+    // 拦截 findAndExtractInventoryAmmo：原逻辑从物品栏提取弹药不足时，补充从网络（FakePlayer 绑定网或物品栏内终端网）直接消耗
     @Inject(method = "findAndExtractInventoryAmmo", at = @At("RETURN"), cancellable = true)
     private void beyond$onFindAndExtract(IItemHandler itemHandler, ItemStack gunItem, int needAmmoCount, CallbackInfoReturnable<Integer> cir) {
         int found = cir.getReturnValue();
@@ -108,6 +116,7 @@ public class AbstractGunItemMixin {
         }
     }
 
+    // 在物品栏容器中查找携带网络 ID 数据组件的终端物品（如维度网络终端），返回其对应的网络
     private static DimensionsNet findTerminalInHandler(IItemHandler inv) {
         for (int i = 0; i < inv.getSlots(); i++) {
             ItemStack stack = inv.getStackInSlot(i);
@@ -124,15 +133,20 @@ public class AbstractGunItemMixin {
         return null;
     }
 
+    // 客户端兜底检查：从本地弹药缓存获取弹药 ID，无缓存时先请求服务端快照，再决定是否允许装填
     private static void clientCheck(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         ResourceLocation ammoId = TaczAmmoExtractor.getAmmoIdClient(stack);
         if (ammoId != null) {
-            if (!TaczAmmoCache.hasData(ammoId))
+            if (!TaczAmmoCache.hasData(ammoId)) {
                 TaczAmmoCache.requestQuick(ammoId);
-            if (!TaczAmmoCache.hasData(ammoId) || TaczAmmoCache.getCount(ammoId) > 0)
+                return;
+            }
+            if (TaczAmmoCache.getCount(ammoId) > 0) {
                 cir.setReturnValue(true);
+            }
         } else {
             cir.setReturnValue(true);
         }
     }
 }
+

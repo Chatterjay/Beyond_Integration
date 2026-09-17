@@ -99,3 +99,4 @@ public class NetworkMyNetworksCommand {
         return NetworkInfoCommand.exec(ctx, netId, null);
     }
 }
+

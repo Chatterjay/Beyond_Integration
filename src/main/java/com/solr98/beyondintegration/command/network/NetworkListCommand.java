@@ -133,3 +133,4 @@ public class NetworkListCommand {
 
     private record NetInfo(int netId, NetworkPermission permissionLevel, String ownerName, int playerCount, int managerCount, boolean deleted, String netName) {}
 }
+

@@ -1,7 +1,8 @@
 package com.solr98.beyondintegration.mixin;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.solr98.beyondintegration.CommandConfig;
-import com.solr98.beyondintegration.handler.VehicleNetStorage;
+import com.solr98.beyondintegration.handler.VehicleNetCache;
+import com.solr98.beyondintegration.handler.INetCachedVehicle;
 import com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet;
 import com.wintercogs.beyonddimensions.api.storage.key.impl.EnergyStackKey;
 import net.neoforged.neoforge.energy.IEnergyStorage;
@@ -10,8 +11,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * 载具能量充电 Mixin：注入 SuperbWarfare 的 VehicleEntity.baseTick，
+ * 按配置的间隔/比例定期从载具绑定的维度网络抽取能量（FE），
+ * 给载具的能量存储充电。
+ */
 @Mixin(targets = "com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity", remap = false)
 public abstract class VehicleEnergyChargeMixin {
+    /**
+     * baseTick 回调：服务端按充电间隔计算缺口，从绑定维度网络抽取
+     * 能量（按百分比或固定速率）充入载具能量存储。
+     */
     @Inject(method = "baseTick", at = @At("HEAD"), remap = true)
     private void beyond$chargeFromNetwork(CallbackInfo ci) {
         VehicleEntity vehicle = (VehicleEntity) (Object) this;
@@ -24,14 +34,9 @@ public abstract class VehicleEnergyChargeMixin {
         int needed = vehicle.getMaxEnergy() - vehicle.getEnergy();
         if (needed <= 0) return;
 
-        int boundNetId = VehicleNetStorage.getBoundNetId(vehicle.getUUID());
-        if (boundNetId < 0) return;
-
-        DimensionsNet net = DimensionsNet.getNetFromId(boundNetId);
-        if (net == null) {
-            VehicleNetStorage.unbindVehicle(vehicle.getUUID());
-            return;
-        }
+        VehicleNetCache cache = ((INetCachedVehicle) vehicle).getNetCache();
+        DimensionsNet net = cache.getNet();
+        if (net == null) return;
 
         double pct = CommandConfig.vehicleChargePercentage();
         long want;
@@ -53,3 +58,4 @@ public abstract class VehicleEnergyChargeMixin {
         }
     }
 }
+

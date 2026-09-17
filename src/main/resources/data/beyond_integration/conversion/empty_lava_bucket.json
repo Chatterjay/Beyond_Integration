@@ -1,0 +1,10 @@
+{
+  "type": "beyond_integration:conversion",
+  "input": [
+    { "item": "minecraft:lava_bucket" }
+  ],
+  "output": { "item": "minecraft:bucket" },
+  "outputNetwork": [
+    { "type": "fluid", "id": "minecraft:lava", "amount": 1000 }
+  ]
+}

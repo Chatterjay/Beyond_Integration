@@ -18,6 +18,13 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
+/**
+ * Tacz 枪械台批量合成请求包（客户端 → 服务端）。
+ * 指定配方 ID、合成次数与产物去向（toNetwork=true 放入网络，否则丢到脚下），
+ * 服务端 handle 优先消耗背包、不足时从网络扣取原料，结束后回发
+ * {@link NetworkItemCountsPacket} 同步最新计数与合成结果。
+ * TYPE: beyond_integration:tacz_craft；STREAM_CODEC 读写 recipeId/count/toNetwork。
+ */
 public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNetwork) implements CustomPacketPayload {
     public static final Type<TaczCraftPacket> TYPE = new Type<>(ResourceLocation.parse("beyond_integration:tacz_craft"));
     public static final StreamCodec<FriendlyByteBuf, TaczCraftPacket> STREAM_CODEC = new StreamCodec<>() {
@@ -30,6 +37,7 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
     };
 
     public static void handle(final TaczCraftPacket packet, final IPayloadContext context) {
+        // 服务端处理：校验网络/配方后执行批量合成，并同步最新物品计数
         context.enqueueWork(() -> {
             var player = context.player();
             if (!(player instanceof ServerPlayer sp)) return;
@@ -41,7 +49,7 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
                 sp.sendSystemMessage(Component.translatable("message.beyond_integration.no_network"));
                 return;
             }
-            if (!RequestNetworkItemsPacket.INDEX_BUILT) RequestNetworkItemsPacket.buildIndex(sp);
+            RequestNetworkItemsPacket.ensureIndex(sp);
 
             var recipeOpt = sp.getServer().getRecipeManager().byKey(packet.recipeId);
             if (recipeOpt.isEmpty()) return;
@@ -50,64 +58,38 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
             List<GunSmithTableIngredient> inputs = taczRecipe.getInputs();
             if (inputs == null || inputs.isEmpty()) return;
 
-            Map<String, Long> idCounts = new HashMap<>();
-            Map<String, Long> exactCounts = new HashMap<>();
-            Map<Integer, List<ItemStackKey>> ingredientKeys = new HashMap<>();
-
-            boolean[] ingredientHasNbt = new boolean[inputs.size()];
-            Set<String>[] ingredientIdSets = new Set[inputs.size()];
+            // 配方驱动定向扫描：构建材料输入清单（无 NBT → IDENTITY 定向精确键；
+            // partial_nbt 候选 → PARTIAL_NBT 先定向、不足时全桶兜底）
+            List<com.solr98.beyondintegration.feature.crafting.RecipeMaterialScanner.MaterialInput> materialInputs = new ArrayList<>();
             for (int ii = 0; ii < inputs.size(); ii++) {
-                Ingredient ing = inputs.get(ii).getIngredient();
-                if (ing == null) continue;
-                Set<String> ids = new HashSet<>();
+                GunSmithTableIngredient gi = inputs.get(ii);
+                if (gi == null) continue;
+                Ingredient ing = gi.getIngredient();
+                if (ing == null || ing.isEmpty()) continue;
+                boolean hasNbt = false;
                 for (ItemStack m : ing.getItems()) {
-                    if (m.isEmpty()) continue;
-                    ids.add(m.getItem().toString());
-                    if (!ingredientHasNbt[ii] && m.has(DataComponents.CUSTOM_DATA) && !m.get(DataComponents.CUSTOM_DATA).isEmpty()) ingredientHasNbt[ii] = true;
+                    if (!m.isEmpty() && m.has(DataComponents.CUSTOM_DATA) && !m.get(DataComponents.CUSTOM_DATA).isEmpty()) {
+                        hasNbt = true;
+                        break;
+                    }
                 }
-                ingredientIdSets[ii] = ids;
+                materialInputs.add(new com.solr98.beyondintegration.feature.crafting.RecipeMaterialScanner.MaterialInput(
+                        ii, List.of(ing.getItems()),
+                        hasNbt ? com.solr98.beyondintegration.feature.crafting.RecipeMaterialScanner.MatchMode.PARTIAL_NBT
+                               : com.solr98.beyondintegration.feature.crafting.RecipeMaterialScanner.MatchMode.IDENTITY,
+                        ing, gi.getCount()));
             }
 
+            var scanResult = com.solr98.beyondintegration.feature.crafting.RecipeMaterialScanner.scan(
+                    net.getUnifiedStorage(), materialInputs);
+            Map<Integer, Long> slotTotals = scanResult.slotTotals();
+            Map<Integer, List<ItemStackKey>> ingredientKeys = scanResult.slotKeys();
             var storage = net.getUnifiedStorage();
-            storage.getBucket(ItemStackKey.ID).ifPresent(bucket -> {
-                for (int bi = 0; bi < bucket.size(); bi++) {
-                    IStackKey<?> rawKey = bucket.get(bi);
-                    if (!(rawKey instanceof ItemStackKey ik)) continue;
-                    long amount = storage.getStackByKey(ik).amount();
-                    if (amount <= 0) continue;
-                    ItemStack stored = ik.getReadOnlyStack();
-                    if (stored.isEmpty()) continue;
-
-                    String itemId = stored.getItem().toString();
-                    idCounts.merge(itemId, amount, Long::sum);
-
-                    List<RequestNetworkItemsPacket.TaczIngredient> related = RequestNetworkItemsPacket.TACZ_INDEX.get(itemId);
-                    if (related != null) {
-                        for (var ti : related) {
-                            if (!ti.hasNbt()) continue;
-                            if (!ti.ingredient().test(stored)) continue;
-                            exactCounts.merge(ti.recipeId() + "|" + ti.idx(), amount, Long::sum);
-                            if (ti.recipeId().equals(packet.recipeId))
-                                ingredientKeys.computeIfAbsent(ti.idx(), k -> new ArrayList<>()).add(ik);
-                        }
-                    }
-
-                    for (int ii = 0; ii < inputs.size(); ii++) {
-                        if (ingredientHasNbt[ii]) continue;
-                        if (ingredientIdSets[ii] != null && ingredientIdSets[ii].contains(itemId)) {
-                            ingredientKeys.computeIfAbsent(ii, k -> new ArrayList<>()).add(ik);
-                            continue;
-                        }
-                        Ingredient ing = inputs.get(ii).getIngredient();
-                        if (ing != null && !ing.isEmpty() && ing.test(stored))
-                            ingredientKeys.computeIfAbsent(ii, k -> new ArrayList<>()).add(ik);
-                    }
-                }
-            });
 
             int crafted = 0;
             int requested = packet.count;
 
+            // 逐次合成：最多 64 次，原料不足时中止并提示
             for (int c = 0; c < 64; c++) {
                 if (requested > 0 && crafted >= requested) break;
 
@@ -123,18 +105,7 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
                         if (!stack.isEmpty() && ing.test(stack)) inInv += stack.getCount();
                     }
 
-                    String exactKey = packet.recipeId + "|" + i;
-                    long exact = exactCounts.getOrDefault(exactKey, 0L);
-                    long inNet;
-                    if (exact > 0) inNet = exact;
-                    else {
-                        inNet = 0;
-                        for (ItemStack m : ing.getItems()) {
-                            if (m.isEmpty()) continue;
-                            inNet += idCounts.getOrDefault(m.getItem().toString(), 0L);
-                        }
-                    }
-
+                    long inNet = slotTotals.getOrDefault(i, 0L);
                     if (inInv + inNet < need) {
                         if (missing == null) {
                             ItemStack ex = ing.getItems().length > 0 ? ing.getItems()[0] : ItemStack.EMPTY;
@@ -149,6 +120,7 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
                     break;
                 }
 
+                // 扣料：先扣玩家背包，不足部分从网络存储提取并更新槽位计数
                 for (int i = 0; i < inputs.size(); i++) {
                     Ingredient ing = inputs.get(i).getIngredient();
                     int need = inputs.get(i).getCount();
@@ -174,25 +146,28 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
                             KeyAmount extracted = storage.extract(ik, take, false, false);
                             if (extracted.amount() > 0) {
                                 need -= extracted.amount();
-                                String cid = ik.getReadOnlyStack().getItem().toString();
-                                idCounts.merge(cid, -extracted.amount(), Long::sum);
-                                List<RequestNetworkItemsPacket.TaczIngredient> rel =
-                                    RequestNetworkItemsPacket.TACZ_INDEX.get(cid);
-                                if (rel != null) {
-                                    for (var ti : rel) {
-                                        if (ti.hasNbt() && ti.ingredient().test(ik.getReadOnlyStack()))
-                                            exactCounts.merge(ti.recipeId() + "|" + ti.idx(), -extracted.amount(), Long::sum);
-                                    }
-                                }
+                                // 扣减槽位网络总量（回传客户端用）
+                                slotTotals.merge(i, -extracted.amount(), Long::sum);
                             }
                         }
                     }
                 }
 
+                // 产出成品：按 toNetwork 决定放入网络存储或生成掉落物
                 ItemStack result = taczRecipe.getResultItem(sp.level().registryAccess());
                 if (!result.isEmpty()) {
                     if (packet.toNetwork) {
-                        net.getUnifiedStorage().insert(new ItemStackKey(result), result.getCount(), false);
+                        long left = net.getUnifiedStorage()
+                                .insert(new ItemStackKey(result), result.getCount(), false).amount();
+                        if (left > 0) {
+                            // 网络容量不足：余量掉落兜底，避免产物丢失
+                            ItemStack drop = result.copy();
+                            drop.setCount((int) left);
+                            var entity = new net.minecraft.world.entity.item.ItemEntity(
+                                    sp.level(), sp.getX(), sp.getY() + 0.5, sp.getZ(), drop);
+                            entity.setPickUpDelay(0);
+                            sp.level().addFreshEntity(entity);
+                        }
                     } else {
                         var entity = new net.minecraft.world.entity.item.ItemEntity(
                                 sp.level(), sp.getX(), sp.getY() + 0.5, sp.getZ(), result.copy());
@@ -211,10 +186,13 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
                         new com.tacz.guns.network.message.ServerMessageCraft(menu.containerId), sp);
             }
 
+            // 通知枪械台刷新界面，并向客户端回发最新物品计数与合成结果
+            // 回传键与界面读取一致："recipeId|idx"（slotTotals 为每槽网络可用总量）
             ItemStack resultItem = crafted > 0 ? taczRecipe.getResultItem(sp.level().registryAccess()) : ItemStack.EMPTY;
-            Map<String, Long> responseCounts = new HashMap<>(idCounts);
-            responseCounts.putAll(exactCounts);
-            responseCounts.values().removeIf(v -> v <= 0);
+            Map<String, Long> responseCounts = new HashMap<>();
+            for (var e : slotTotals.entrySet()) {
+                if (e.getValue() > 0) responseCounts.put(packet.recipeId + "|" + e.getKey(), e.getValue());
+            }
             PacketHandler.sendToPlayer(sp, new NetworkItemCountsPacket(responseCounts, true, true,
                     net != null ? net.getId() : -1, net != null ? net.getCustomName() : "", resultItem, crafted));
         });
@@ -222,3 +200,4 @@ public record TaczCraftPacket(ResourceLocation recipeId, int count, boolean toNe
 
     @Override public @NotNull Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
+

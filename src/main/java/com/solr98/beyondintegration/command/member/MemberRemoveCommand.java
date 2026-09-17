@@ -15,8 +15,13 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.Collection;
 import java.util.UUID;
 
+/**
+ * 成员移除命令：提供 /bdtools member removePlayers / removeManagers，
+ * 将指定玩家从网络的成员或管理员列表中移除，并进行权限校验。
+ */
 public class MemberRemoveCommand {
 
+    /** 注册 removePlayers 命令（移除成员） */
     public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerRemovePlayers() {
         return Commands.literal("removePlayers")
                 .executes(ctx -> { ctx.getSource().sendFailure(CommandLang.component("error.players_required")); return 0; })
@@ -26,6 +31,7 @@ public class MemberRemoveCommand {
                                 .executes(ctx -> executeRemovePlayers(ctx, false))));
     }
 
+    /** 注册 removeManagers 命令（移除管理员） */
     public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerRemoveManagers() {
         return Commands.literal("removeManagers")
                 .executes(ctx -> { ctx.getSource().sendFailure(CommandLang.component("error.players_required")); return 0; })
@@ -35,6 +41,7 @@ public class MemberRemoveCommand {
                                 .executes(ctx -> executeRemovePlayers(ctx, true))));
     }
 
+    /** 执行批量移除：校验权限后逐个移除目标玩家，返回成功移除数量 */
     public static int executeRemovePlayers(CommandContext<CommandSourceStack> ctx, boolean removeManagers) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         if (!PermissionChecker.checkServerAvailable(source)) return 0;
@@ -72,12 +79,13 @@ public class MemberRemoveCommand {
         return successCount[0];
     }
 
+    /** 从网络移除单个玩家；removeManagers 为 true 时仅移除管理员身份，否则移除成员（若为管理员则一并移除） */
     private static boolean removePlayerFromNetwork(CommandSourceStack source, DimensionsNet net, ServerPlayer player, boolean removeManagers) {
         try {
             UUID puid = player.getUUID();
             if (!net.getPlayers().contains(puid)) return false;
             if (net.isOwner(puid)) {
-                source.sendFailure(Component.translatable("message.beyond_cmd_extension.cannot_remove_owner"));
+                source.sendFailure(CommandLang.component("error.cannot_remove_owner"));
                 return false;
             }
             boolean removed = false;
@@ -96,3 +104,4 @@ public class MemberRemoveCommand {
         }
     }
 }
+

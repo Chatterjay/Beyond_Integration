@@ -1,6 +1,5 @@
 package com.solr98.beyondintegration.mixin;
 
-import com.solr98.beyondintegration.handler.VehicleNetStorage;
 import com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet;
 import com.wintercogs.beyonddimensions.common.init.BDDataComponents;
 import net.minecraft.world.InteractionHand;
@@ -16,9 +15,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * 维度网终端 Mixin：注入 BD 的 NetTerminalItem.use，
+ * 手持终端对准 SuperbWarfare 载具使用时，将载具绑定到终端指向的维度网络。
+ */
 @Mixin(targets = "com.wintercogs.beyonddimensions.common.item.NetTerminalItem", remap = false)
 public class NetTerminalItemMixin {
 
+    /**
+     * 终端使用回调：若玩家视线 8 格内瞄准 SuperbWarfare 载具，
+     * 则消耗本次使用并把该网络绑定到载具缓存。
+     */
     @Inject(method = "use", at = @At("HEAD"), cancellable = true, remap = true)
     private void onUse(Level level, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResultHolder<ItemStack>> cir) {
         ItemStack stack = player.getItemInHand(hand);
@@ -31,10 +38,13 @@ public class NetTerminalItemMixin {
         cir.setReturnValue(InteractionResultHolder.sidedSuccess(stack, level.isClientSide()));
         if (!level.isClientSide()) {
             DimensionsNet net = DimensionsNet.getNetFromId(netId);
-            if (net != null) VehicleNetStorage.bindVehicle(vehicle.getUUID(), netId);
+            if (net != null && vehicle instanceof com.solr98.beyondintegration.handler.INetCachedVehicle icv) {
+                icv.getNetCache().attach(netId, null);
+            }
         }
     }
 
+    /** 沿玩家视线方向（8 格内）查找被准星命中的 SuperbWarfare 载具实体 */
     private static Entity findVehicle(Player player) {
         Vec3 from = player.getEyePosition();
         Vec3 look = player.getLookAngle();
@@ -55,3 +65,4 @@ public class NetTerminalItemMixin {
         return null;
     }
 }
+

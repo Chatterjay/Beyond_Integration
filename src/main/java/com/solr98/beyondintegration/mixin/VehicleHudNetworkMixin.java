@@ -19,8 +19,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.text.NumberFormat;
 
+/**
+ * 载具 HUD 网络信息 Mixin：注入 SuperbWarfare 的 VehicleHudOverlay.render，
+ * 在原有载具 HUD 基础上额外渲染绑定网络的信息（网络名、能量、当前弹药量）。
+ */
 @Mixin(targets = "com.atsuishio.superbwarfare.client.overlay.VehicleHudOverlay", remap = false)
 public abstract class VehicleHudNetworkMixin {
+    /**
+     * HUD 渲染回调：载具绑定网络时，绘制网络名、能量与当前弹药量；
+     * ITEM 类弹药按需向服务端请求缺失项。
+     */
     @Inject(method = "render(Lcom/atsuishio/superbwarfare/client/overlay/RenderContext;)V", at = @At("RETURN"), remap = false)
     private void beyond$renderVehicleNetworkInfo(RenderContext context, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
@@ -33,6 +41,18 @@ public abstract class VehicleHudNetworkMixin {
 
         if (!SuperbAmmoCache.INSTANCE.vehicleHasData()) return;
         if (SuperbAmmoCache.INSTANCE.getVehicleNetId() < 0) return;
+
+        // ITEM 弹药现查：按固定弹药列表批量补缺失项
+        int vNetId = SuperbAmmoCache.INSTANCE.getVehicleNetId();
+        java.util.List<String> vAmmoList = SuperbAmmoCache.INSTANCE.getVehicleAmmoList();
+        java.util.List<String> vItemKeys = new java.util.ArrayList<>();
+        for (String k : vAmmoList) {
+            if (k.startsWith("ITEM:")) vItemKeys.add(k);
+        }
+        java.util.List<String> vMissing = SuperbAmmoCache.INSTANCE.getMissingItemKeys(vItemKeys, true);
+        if (!vMissing.isEmpty()) {
+            SuperbAmmoCache.INSTANCE.requestItems(vNetId, vMissing, true);
+        }
 
         Font font = mc.font;
         int h = context.getScreenHeight();
@@ -78,7 +98,7 @@ public abstract class VehicleHudNetworkMixin {
                         if (space > 0) raw = raw.substring(space + 1).strip();
                         if (raw.startsWith("@") || raw.startsWith("#")) raw = raw.substring(1);
                         String itemId = raw;
-                        long count = SuperbAmmoCache.INSTANCE.getVehicleCount("ITEM:" + itemId);
+                        long count = SuperbAmmoCache.INSTANCE.getItemCount("ITEM:" + itemId, true);
                         if (count > 0) {
                             var item = BuiltInRegistries.ITEM.get(ResourceLocation.tryParse(itemId));
                             if (item != null && item != Items.AIR) {
@@ -92,3 +112,4 @@ public abstract class VehicleHudNetworkMixin {
         context.getGuiGraphics().drawString(font, ammoStr, x, y - 9, 0x55FFFF, true);
     }
 }
+

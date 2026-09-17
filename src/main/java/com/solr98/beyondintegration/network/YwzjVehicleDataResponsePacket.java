@@ -12,6 +12,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 一物质造(载具)数据响应包（服务端 → 客户端）。
+ * 响应载具相关数据请求，携带网络能量、名称与弹药全量计数，
+ * 由 handle 更新客户端 {@link YwzjVehicleCache}。
+ * TYPE: beyond_integration:ywzj_vehicle_data_response；STREAM_CODEC 按 map 逐条序列化。
+ */
 public record YwzjVehicleDataResponsePacket(int netId, long energy, String networkName, Map<String, Long> ammoMap) implements CustomPacketPayload {
     public static final Type<YwzjVehicleDataResponsePacket> TYPE = new Type<>(
             ResourceLocation.parse(BeyondIntegration.MODID + ":ywzj_vehicle_data_response"));
@@ -42,9 +48,11 @@ public record YwzjVehicleDataResponsePacket(int netId, long energy, String netwo
     };
 
     public static void handle(final YwzjVehicleDataResponsePacket packet, final IPayloadContext context) {
+        // 客户端处理：将载具能量与弹药数据写入 YwzjVehicleCache
         context.enqueueWork(() -> YwzjVehicleCache.INSTANCE.update(packet.netId, packet.energy, packet.networkName, packet.ammoMap));
     }
 
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
+

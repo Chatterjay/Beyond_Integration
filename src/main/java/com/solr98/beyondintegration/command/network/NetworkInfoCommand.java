@@ -1,8 +1,10 @@
 package com.solr98.beyondintegration.command.network;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.solr98.beyondintegration.CommandConfig;
 import com.solr98.beyondintegration.command.CommandLang;
 import com.solr98.beyondintegration.command.util.*;
+import com.solr98.beyondintegration.feature.workstation.WorkstationActivation;
 import com.solr98.beyondintegration.handler.NetworkNameProvider;
 import com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet;
 import net.minecraft.ChatFormatting;
@@ -13,15 +15,54 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.List;
+
 public class NetworkInfoCommand {
 
     public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("info")
+                // 无参数：自己的主要网络
                 .executes(ctx -> exec(ctx, -1, null))
+                // 网络 ID（可选再跟玩家：查看该玩家在该网络的权限信息）
                 .then(Commands.argument("netId", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 9999))
                         .executes(ctx -> exec(ctx, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "netId"), null))
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> exec(ctx, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "netId"), EntityArgument.getPlayer(ctx, "player")))));
+                                .executes(ctx -> exec(ctx, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "netId"), EntityArgument.getPlayer(ctx, "player")))))
+                // 玩家名：查看该玩家的主要网络信息（非本人需 OP）
+                .then(Commands.argument("player", EntityArgument.player())
+                        .executes(ctx -> execForPlayer(ctx, EntityArgument.getPlayer(ctx, "player"))));
+    }
+
+    /**
+     * 按玩家名查询：显示该玩家主要网络的完整信息。
+     * 查询他人需要 OP 权限；目标玩家没有网络时给出提示。
+     */
+    public static int execForPlayer(CommandContext<CommandSourceStack> ctx, ServerPlayer targetPlayer) {
+        CommandSourceStack source = ctx.getSource();
+        if (!PermissionChecker.checkServerAvailable(source)) return 0;
+        var server = source.getServer();
+        if (server == null) { source.sendFailure(OutputFormatter.createError("error.server_not_available")); return 0; }
+        var executor = source.getPlayer();
+        if (executor == null) { source.sendFailure(OutputFormatter.createError("error.player_required")); return 0; }
+
+        // 查询他人需要 OP 权限
+        if (!executor.getUUID().equals(targetPlayer.getUUID())) {
+            if (!PermissionChecker.checkOpPermissionForOthers(source, targetPlayer)) return 0;
+        }
+
+        // 目标玩家的主要网络
+        DimensionsNet net = DimensionsNet.getPrimaryNetFromPlayer(targetPlayer);
+        if (net == null) {
+            source.sendFailure(OutputFormatter.createError("error.player_not_in_any_network",
+                    targetPlayer.getName().getString()));
+            return 0;
+        }
+
+        if (!PermissionChecker.checkNetworkAccessPermission(source, net, targetPlayer)) return 0;
+
+        MutableComponent msg = buildMessage(net, targetPlayer, server);
+        source.sendSuccess(() -> msg, false);
+        return 1;
     }
 
     public static int exec(CommandContext<CommandSourceStack> ctx, int netId, ServerPlayer targetPlayer) {
@@ -113,6 +154,21 @@ public class NetworkInfoCommand {
             msg = msg.append(Component.literal(CommandLang.get("network.info.no_resources")).withStyle(ChatFormatting.GRAY)).append(Component.literal("\n"));
         }
 
+        // 工作台献祭激活状态（可选平衡项开启时显示；重置见 /bdtools network workstation reset）
+        if (CommandConfig.isWorkstationActivationEnabled()) {
+            List<String> activatedWs = WorkstationActivation.activatedIds(net);
+            msg = msg.append(Component.literal("\n"));
+            if (activatedWs.isEmpty()) {
+                msg = msg.append(Component.literal(CommandLang.get("network.info.workstation_none"))
+                        .withStyle(ChatFormatting.GRAY));
+            } else {
+                msg = msg.append(Component.literal(CommandLang.get("network.info.workstation",
+                                String.join(", ", activatedWs)))
+                        .withStyle(ChatFormatting.GREEN));
+            }
+            msg = msg.append(Component.literal("\n"));
+        }
+
         msg = msg.append(Component.literal(CommandLang.get("network.info.player_count_label")))
                 .append(OutputFormatter.createHoverableNumber(net.getPlayers().size(), CommandLang.get("network.info.player_count_label")))
                 .append(Component.literal(CommandLang.get("network.info.manager_count_label")))
@@ -130,3 +186,4 @@ public class NetworkInfoCommand {
         return perm.getColor();
     }
 }
+

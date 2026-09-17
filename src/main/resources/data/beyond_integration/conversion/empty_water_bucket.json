@@ -1,0 +1,10 @@
+{
+  "type": "beyond_integration:conversion",
+  "input": [
+    { "item": "minecraft:water_bucket" }
+  ],
+  "output": { "item": "minecraft:bucket" },
+  "outputNetwork": [
+    { "type": "fluid", "id": "minecraft:water", "amount": 1000 }
+  ]
+}

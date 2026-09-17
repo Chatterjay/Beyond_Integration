@@ -295,3 +295,4 @@ public class NetworkGenerateResourcesCommand {
         int itemsWithEnchantments = 0; int totalEnchantments = 0;
     }
 }
+

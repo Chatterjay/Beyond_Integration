@@ -12,7 +12,15 @@ import com.wintercogs.beyonddimensions.api.storage.key.impl.ItemStackKey;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * SW 弹药入库处理器：拦截存入维度网络的 SW 弹药类物品，
+ * 将弹药转入网络的虚拟弹药存储（SuperbAmmoAccessor），创造弹药箱则标记无限弹药。
+ */
 public class SuperbAmmoInsertHandler implements UnifiedStorageBeforeInsertHandler.BeforeInsertHandler {
+    /**
+     * 插入前拦截：按物品种类（AmmoSupplierItem / CreativeAmmoBoxItem / AmmoBoxItem）
+     * 将弹药写入虚拟存储，并决定是否接受本次物理插入。
+     */
     @Override
     public @NotNull UnifiedStorageBeforeInsertHandler.BeforeInsertHandlerReturnInfo beforeInsert(
             @NotNull KeyAmount originalInsert, @NotNull KeyAmount tryInsert, DimensionsNet net) {
@@ -27,21 +35,21 @@ public class SuperbAmmoInsertHandler implements UnifiedStorageBeforeInsertHandle
         var item = stack.getItem();
         var map = acc.getSuperbAmmo();
 
-        // AmmoSupplierItem → 5 种虚拟弹药 + 专用弹药盒（如 handgun_ammo_box）
+        // AmmoSupplierItem: 5 virtual ammo types + dedicated ammo box (e.g. handgun_ammo_box)
         if (item instanceof AmmoSupplierItem supplier) {
             map.merge(supplier.getType().serializationName, tryInsert.amount() * supplier.getAmmoToAdd(), Long::sum);
             net.setDirty();
             return accept();
         }
 
-        // CreativeAmmoBoxItem → 存入物理存储 + 标记无限弹药
+        // CreativeAmmoBoxItem: store to physical storage + mark infinite ammo
         if (item instanceof CreativeAmmoBoxItem) {
             map.put("__infinite__", 1L);
             net.setDirty();
             return new UnifiedStorageBeforeInsertHandler.BeforeInsertHandlerReturnInfo(tryInsert, false);
         }
 
-        // 通用 AmmoBoxItem（ammo_box）→ 提取弹药存虚拟，并清空弹药数据让空盒正常存入网络
+        // Generic AmmoBoxItem (ammo_box): extract ammo to virtual storage, clear ammo data for normal insert
         if (item instanceof AmmoBoxItem) {
             ItemStack boxStack = stack.copyWithCount(1);
             boolean any = false;
@@ -64,6 +72,7 @@ public class SuperbAmmoInsertHandler implements UnifiedStorageBeforeInsertHandle
         return new UnifiedStorageBeforeInsertHandler.BeforeInsertHandlerReturnInfo(tryInsert, false);
     }
 
+    /** 返回"接受插入"的结果（以空栈占位，完全吸收原插入）。 */
     private static UnifiedStorageBeforeInsertHandler.BeforeInsertHandlerReturnInfo accept() {
         return new UnifiedStorageBeforeInsertHandler.BeforeInsertHandlerReturnInfo(
                 new KeyAmount(EmptyStackKey.INSTANCE, 0), false);

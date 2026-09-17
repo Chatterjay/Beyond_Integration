@@ -10,7 +10,14 @@ import org.jetbrains.annotations.NotNull;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Tacz 弹药计数响应包（服务端 → 客户端）。
+ * 响应 {@link RequestAmmoCountPacket}，携带指定弹药在各网络中的数量汇总；
+ * 由 handle 在客户端线程更新 {@link TaczAmmoCache}。
+ * TYPE: beyond_integration:ammo_count_response；STREAM_CODEC 按 map 大小逐条读写。
+ */
 public record AmmoCountResponsePacket(ResourceLocation ammoId, Map<Integer, NetEntry> networks, boolean quick) implements CustomPacketPayload {
+    // 单个网络中的弹药条目：网络 ID、自定义名称、弹药数量
     public record NetEntry(int netId, String customName, int count) {}
 
     public static final Type<AmmoCountResponsePacket> TYPE = new Type<>(ResourceLocation.parse(BeyondIntegration.MODID + ":ammo_count_response"));
@@ -41,6 +48,7 @@ public record AmmoCountResponsePacket(ResourceLocation ammoId, Map<Integer, NetE
     };
 
     public static void handle(final AmmoCountResponsePacket packet, final IPayloadContext context) {
+        // 仅客户端处理：将各网络弹药计数写入客户端缓存 TaczAmmoCache
         context.enqueueWork(() -> {
             if (context.player().level().isClientSide())
                 TaczAmmoCache.update(packet.ammoId, packet.networks, packet.quick);
@@ -49,3 +57,4 @@ public record AmmoCountResponsePacket(ResourceLocation ammoId, Map<Integer, NetE
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
+

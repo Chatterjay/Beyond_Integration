@@ -1,7 +1,6 @@
 package com.solr98.beyondintegration.mixin;
 
 import com.mojang.logging.LogUtils;
-import euphy.upo.sentrymechanicalarm.compat.AeronauticsHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -12,12 +11,18 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * 哨戒臂航空兼容修复 Mixin（Pseudo，Sable 未加载时自动跳过）：
+ * 注入哨戒机械臂模组的 AeronauticsHelper 子维度判断/坐标换算方法。
+ * 未安装 Sable Companion 时禁用子维度检查并原样返回坐标，避免哨戒逻辑出错。
+ */
 @Pseudo
 @Mixin(targets = "euphy.upo.sentrymechanicalarm.compat.AeronauticsHelper", remap = false)
 public class SentryAeronauticsFixMixin {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
+    /** 未安装 Sable Companion 时，禁用 Sable 子维度判定（哨戒不在子维度中） */
     @Inject(method = "isInSableSubLevel", at = @At("HEAD"), cancellable = true)
     private static void beyond$fixSableCheck(Level level, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
         try {
@@ -28,6 +33,7 @@ public class SentryAeronauticsFixMixin {
         }
     }
 
+    /** 未安装 Sable Companion 时，子维度坐标转世界坐标直接原样返回 */
     @Inject(method = "sableSubLevelToWorld", at = @At("HEAD"), cancellable = true)
     private static void beyond$fixSableToWorld(Level level, Vec3 localPos, CallbackInfoReturnable<Vec3> cir) {
         try {
@@ -37,6 +43,7 @@ public class SentryAeronauticsFixMixin {
         }
     }
 
+    /** 未安装 Sable Companion 时，世界坐标转子维度坐标直接原样返回 */
     @Inject(method = "sableWorldToSubLevel", at = @At("HEAD"), cancellable = true)
     private static void beyond$fixSableToSub(Level level, Vec3 worldPos, BlockPos queryPos, CallbackInfoReturnable<Vec3> cir) {
         try {
@@ -46,3 +53,4 @@ public class SentryAeronauticsFixMixin {
         }
     }
 }
+

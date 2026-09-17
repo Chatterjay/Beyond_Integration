@@ -14,8 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 网络查询与统计工具类：提供维度网络（DimensionsNet）的资源统计、
+ * 库存容量判断、玩家列表获取、玩家权限等级查询及玩家所属网络列表
+ * 等命令展示所需的数据查询能力。
+ */
 public class NetworkUtils {
 
+    /** 网络资源统计结果：记录物品/流体/能量的类型数与总量。 */
     public static class NetworkStats {
         public int itemTypes = 0;
         public int fluidTypes = 0;
@@ -24,10 +30,13 @@ public class NetworkUtils {
         public BigInteger fluidTotal = BigInteger.ZERO;
         public BigInteger energyTotal = BigInteger.ZERO;
 
+        /** 资源类型总数（三类之和）。 */
         public int getTotalTypes() { return itemTypes + fluidTypes + energyTypes; }
+        /** 三类资源总量之和。 */
         public BigInteger getTotalResources() { return itemTotal.add(fluidTotal).add(energyTotal); }
     }
 
+    /** 网络成员玩家列表：按所有者/管理员/成员角色分类存储玩家名。 */
     public static class PlayerList {
         public String owner = "";
         public final List<String> owners = new ArrayList<>();
@@ -42,6 +51,7 @@ public class NetworkUtils {
         }
     }
 
+    /** 网络概览信息：ID、权限权重与等级、所有者名、人数及自定义名称。 */
     public static class NetInfo {
         public int netId;
         public int permissionWeight;
@@ -62,6 +72,7 @@ public class NetworkUtils {
         }
     }
 
+    /** 统计网络的物品/流体/能量类型数与总量（已删除或空网络返回空统计）。 */
     public static NetworkStats getNetworkStats(DimensionsNet net) {
         NetworkStats stats = new NetworkStats();
         if (net == null || net.deleted) return stats;
@@ -82,18 +93,22 @@ public class NetworkUtils {
         return stats;
     }
 
+    /** 查询网络中指定物品的可用数量。 */
     public static long getAvailableItemCount(DimensionsNet net, ItemStackKey key) {
         return net.getUnifiedStorage().getStackByKey(key).amount();
     }
 
+    /** 查询网络中指定流体的可用数量。 */
     public static long getAvailableFluidCount(DimensionsNet net, FluidStackKey key) {
         return net.getUnifiedStorage().getStackByKey(key).amount();
     }
 
+    /** 查询网络中指定能量类型的可用数量。 */
     public static long getAvailableEnergyCount(DimensionsNet net, EnergyStackKey key) {
         return net.getUnifiedStorage().getStackByKey(key).amount();
     }
 
+    /** 判断网络是否有足够容量再存入指定数量物品。 */
     public static boolean hasEnoughStorageForItem(DimensionsNet net, ItemStackKey key, long amountToAdd) {
         long current = net.getUnifiedStorage().getStackByKey(key).amount();
         long cap = net.getUnifiedStorage().getSlotCapacity(0);
@@ -101,6 +116,7 @@ public class NetworkUtils {
         return current + amountToAdd <= cap;
     }
 
+    /** 判断网络是否有足够容量再存入指定数量流体。 */
     public static boolean hasEnoughStorageForFluid(DimensionsNet net, FluidStackKey key, long amountToAdd) {
         long current = net.getUnifiedStorage().getStackByKey(key).amount();
         long cap = net.getUnifiedStorage().getSlotCapacity(0);
@@ -108,6 +124,7 @@ public class NetworkUtils {
         return current + amountToAdd <= cap;
     }
 
+    /** 判断网络是否有足够容量再存入指定数量能量。 */
     public static boolean hasEnoughStorageForEnergy(DimensionsNet net, EnergyStackKey key, long amountToAdd) {
         long current = net.getUnifiedStorage().getStackByKey(key).amount();
         long cap = net.getUnifiedStorage().getSlotCapacity(0);
@@ -115,6 +132,7 @@ public class NetworkUtils {
         return current + amountToAdd <= cap;
     }
 
+    /** 获取网络的玩家列表（所有者/管理员/成员），名称通过服务器查询解析。 */
     public static PlayerList getNetworkPlayerList(DimensionsNet net, MinecraftServer server) {
         PlayerList list = new PlayerList();
         if (net == null || server == null) return list;
@@ -141,14 +159,17 @@ public class NetworkUtils {
         return list;
     }
 
+    /** 获取玩家对指定网络的权限等级。 */
     public static NetworkPermission getPlayerPermissionLevel(ServerPlayer player, DimensionsNet net) {
         return NetworkPermission.fromPlayer(player, net);
     }
 
+    /** 获取权限等级的本地化显示文本。 */
     public static String getPermissionLevelDisplay(NetworkPermission permissionLevel) {
         return permissionLevel.getDisplay();
     }
 
+    /** 获取玩家的所有网络，主网络排在最前。 */
     public static List<DimensionsNet> getPlayerNetsPrimaryFirst(ServerPlayer player) {
         List<DimensionsNet> result = new ArrayList<>();
         DimensionsNet primary = DimensionsNet.getPrimaryNetFromPlayer(player);
@@ -159,6 +180,10 @@ public class NetworkUtils {
         return result;
     }
 
+    /**
+     * 获取玩家所属的全部网络信息，按权限权重降序（所有者 &gt; 管理员 &gt; 成员）
+     * 再按网络 ID 升序排列。
+     */
     public static List<NetInfo> getPlayerNetworks(ServerPlayer player, MinecraftServer server) {
         List<NetInfo> networks = new ArrayList<>();
         if (server == null) return networks;
@@ -189,6 +214,10 @@ public class NetworkUtils {
         return networks;
     }
 
+    /**
+     * 通过反射读取网络内部累计时间，计算水晶生成剩余刻数
+     * （负数表示功能关闭或读取失败）。
+     */
     public static int getCrystalRemainingTime(DimensionsNet net) {
         try {
             int crystalGenerateTime = com.wintercogs.beyonddimensions.config.ServerConfigRuntime.crystalGenerateTime;
@@ -202,3 +231,4 @@ public class NetworkUtils {
         }
     }
 }
+

@@ -17,7 +17,7 @@ license = "GNU GPL 3.0"
 # The modid of the mod
 modId = "beyond_integration" #mandatory
 # The version number of the mod
-version = "0.4.0" #mandatory
+version = "0.6.5" #mandatory
 # A display name for the mod
 displayName = "Beyond Integration" #mandatory
 # A URL to query for updates for this mod. See the JSON update specification https://docs.neoforge.net/docs/misc/updatechecker/
@@ -75,7 +75,7 @@ side = "BOTH"
 [[dependencies."beyond_integration"]]
 modId = "beyonddimensions"
 type = "required"
-versionRange = "[0.7.0,)"
+versionRange = "[0.7.27,)"
 ordering = "NONE"
 side = "BOTH"
 

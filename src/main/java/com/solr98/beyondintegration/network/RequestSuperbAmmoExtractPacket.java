@@ -2,6 +2,7 @@ package com.solr98.beyondintegration.network;
 import com.atsuishio.superbwarfare.data.gun.Ammo;
 import com.solr98.beyondintegration.BeyondIntegration;
 import com.solr98.beyondintegration.handler.EnchantSeparationAccessor;
+import com.solr98.beyondintegration.handler.MenuNetIdHelper;
 import com.solr98.beyondintegration.handler.SuperbAmmoAccessor;
 import com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet;
 import com.wintercogs.beyonddimensions.api.storage.key.impl.EnergyStackKey;
@@ -17,12 +18,15 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
 import java.util.HashMap;
 
+/**
+ * Superb Warfare 弹药提取请求包（客户端 → 服务端）。
+ * 从当前网络（主网络/菜单/手持物品指定网络）扣除指定类型弹药并放入玩家背包，
+ * 处理后回发 {@link SuperbAmmoStatusResponsePacket} 全量状态。
+ * TYPE: beyond_integration:request_superb_ammo_extract；STREAM_CODEC 读写 ammoType 与 amount。
+ */
 public record RequestSuperbAmmoExtractPacket(String ammoType, long amount) implements CustomPacketPayload {
-    private static final Logger LOGGER = LogUtils.getLogger();
     public static final Type<RequestSuperbAmmoExtractPacket> TYPE = new Type<>(ResourceLocation.parse(BeyondIntegration.MODID + ":request_superb_ammo_extract"));
     public static final StreamCodec<RegistryFriendlyByteBuf, RequestSuperbAmmoExtractPacket> STREAM_CODEC = new StreamCodec<>() {
         @Override public @NotNull RequestSuperbAmmoExtractPacket decode(RegistryFriendlyByteBuf buf) {
@@ -33,11 +37,12 @@ public record RequestSuperbAmmoExtractPacket(String ammoType, long amount) imple
         }
     };
 
+    /** 按优先级查找玩家当前生效网络：主网络 → 菜单网络 → 手持物品 NET_ID 指定网络 */
     @Nullable
     private static DimensionsNet findCurrentNet(ServerPlayer player) {
         DimensionsNet net = DimensionsNet.getPrimaryNetFromPlayer(player);
         if (net != null) return net;
-        net = getNetFromOpenMenu(player);
+        net = MenuNetIdHelper.getNetFromMenu(player);
         if (net != null) return net;
         for (var hand : InteractionHand.values()) {
             var stack = player.getItemInHand(hand);
@@ -50,29 +55,8 @@ public record RequestSuperbAmmoExtractPacket(String ammoType, long amount) imple
         return null;
     }
 
-    @Nullable
-    private static DimensionsNet getNetFromOpenMenu(ServerPlayer player) {
-        var menu = player.containerMenu;
-        if (menu == null) return null;
-        String className = menu.getClass().getName();
-        if (!className.contains("DimensionsNetMenu") && !className.contains("DimensionsCraftMenu")
-                && !className.contains("NetControlMenu")) return null;
-        try {
-            var posField = menu.getClass().getDeclaredField("entityPos");
-            posField.setAccessible(true);
-            var pos = (net.minecraft.core.BlockPos) posField.get(menu);
-            if (pos == null) return null;
-            var be = player.level().getBlockEntity(pos);
-            if (be == null) return null;
-            var getNetMethod = be.getClass().getMethod("getNet");
-            return (DimensionsNet) getNetMethod.invoke(be);
-        } catch (Exception e) {
-            LOGGER.warn("Failed to get DimensionsNet from open menu via reflection", e);
-        }
-        return null;
-    }
-
     public static void handle(final RequestSuperbAmmoExtractPacket packet, final IPayloadContext context) {
+        // 服务端处理：扣除弹药并发放给玩家（背包放不下则丢出），再回发最新状态
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
             var net = findCurrentNet(player);
@@ -105,11 +89,12 @@ public record RequestSuperbAmmoExtractPacket(String ammoType, long amount) imple
             }
 
             long energy = net.getUnifiedStorage().getStackByKey(EnergyStackKey.INSTANCE).amount();
-            boolean enchantSep = !(net instanceof EnchantSeparationAccessor ea) || ea.beyond$isEnchantSeparationEnabled();
+            boolean enchantSep = net instanceof EnchantSeparationAccessor ea && ea.beyond$isEnchantSeparationEnabled();
             PacketDistributor.sendToPlayer(player, new SuperbAmmoStatusResponsePacket(
-                    net.getId(), new HashMap<>(map), energy, 0, net.getCustomName(), enchantSep));
+                    net.getId(), net.getCustomName(), energy, enchantSep, new HashMap<>(map), null));
         });
     }
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
 }
+

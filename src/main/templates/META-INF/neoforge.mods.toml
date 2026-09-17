@@ -75,7 +75,7 @@ side = "BOTH"
 [[dependencies."${mod_id}"]]
 modId = "beyonddimensions"
 type = "required"
-versionRange = "[0.7.0,)"
+versionRange = "[0.7.27,)"
 ordering = "NONE"
 side = "BOTH"
 

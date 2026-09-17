@@ -1,12 +1,10 @@
 package com.solr98.beyondintegration.mixin.ywzj_vehicle;
 
-import com.mojang.logging.LogUtils;
 import com.solr98.beyondintegration.handler.VehicleNetStorage;
 import com.wintercogs.beyonddimensions.api.dimensionnet.DimensionsNet;
 import com.wintercogs.beyonddimensions.api.storage.key.impl.ItemStackKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,11 +13,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.ywzj.vehicle.entity.vehicle.AbstractVehicle;
 import org.ywzj.vehicle.vehicle.weapon.AbstractVehicleWeapon;
 
+/**
+ * 载具武器弹药 Mixin：注入遥装甲载具的 AbstractVehicleWeapon 的
+ * hasStorageAmmo 与 reload，当载具武器自身弹药不足时，判断并直接从
+ * 绑定的维度网络补充对应弹药，实现跨网络补给。
+ */
 @Mixin(AbstractVehicleWeapon.class)
 public class AmmoReloadMixin {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
 
+    /** 武器自身无存储弹药时，检查绑定维度网络中是否存在该武器所需弹药 */
     @Inject(method = "hasStorageAmmo", at = @At("RETURN"), cancellable = true)
     private void beyond$hasNetworkAmmo(CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValueZ()) return;
@@ -46,6 +49,7 @@ public class AmmoReloadMixin {
         }
     }
 
+    /** 武器换弹后仍缺弹时，从绑定维度网络按弹药配方逐项提取并填入剩余缺口 */
     @Inject(method = "reload", at = @At("RETURN"))
     private void beyond$fillRemainingFromNetwork(CallbackInfo ci) {
         AbstractVehicleWeapon<?> self = (AbstractVehicleWeapon<?>) (Object) this;
@@ -78,7 +82,7 @@ public class AmmoReloadMixin {
         if (total > 0) {
             self.setRemainAmmo(self.getRemainAmmo() + total);
             net.setDirty();
-            LOGGER.info("[BD-Net] Filled {} ammo from network after reload", total);
         }
     }
 }
+
