@@ -46,6 +46,7 @@ public class ClientEventHandler {
         NeoForge.EVENT_BUS.register(new ItemTooltipHandler());
         // 悬停可存入网络的槽位左上角 "+" 角标（客户端渲染）
         NeoForge.EVENT_BUS.addListener(HoverStoreOverlay::onScreenRender);
+        EmiBdShortcuts.register();
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Pre.class, e -> {
             BDKeyBindings.handleTick();
             handleClientTick();

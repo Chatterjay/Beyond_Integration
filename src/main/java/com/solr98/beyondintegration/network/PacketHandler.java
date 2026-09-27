@@ -69,6 +69,7 @@ public class PacketHandler {
         registrar.playToServer(RequestWorkstationActivationPayload.TYPE, RequestWorkstationActivationPayload.STREAM_CODEC, RequestWorkstationActivationPayload::handle);
         registrar.playToClient(WorkstationActivationSyncPayload.TYPE, WorkstationActivationSyncPayload.STREAM_CODEC, WorkstationActivationSyncPayload::handle);
         registrar.playToServer(ExtractNetworkItemPacket.TYPE, ExtractNetworkItemPacket.STREAM_CODEC, ExtractNetworkItemPacket::handle);
+        registrar.playToServer(EmiBdActionPayload.TYPE, EmiBdActionPayload.STREAM_CODEC, EmiBdActionPayload::handle);
     }
 
     /** 向服务端发送任意自定义 payload */

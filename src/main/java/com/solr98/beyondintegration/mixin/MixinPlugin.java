@@ -20,6 +20,14 @@ public class MixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         var modList = ModList.get();
         if (modList == null) return true;
+        // EmiLink 与本模组争夺同一批 EMI / BD-EMI 交互钩子（网络槽提取、Space 批量转移、
+        // 结果槽批量合成、合成网格清理）。检测到 EmiLink 时本模组对所有 EMI 目标类一律不注入，
+        // 由 EmiLink 独占，避免同一处点击被两个模组重复处理。
+        // 常量在编译期内联，此处不会触发 EmiBdCompat 的类加载。
+        if (targetClassName.startsWith("dev.emi.emi.")
+                || targetClassName.startsWith("com.wintercogs.beyonddimensions.integration.module.emi.")) {
+            return !modList.isLoaded(com.solr98.beyondintegration.compat.EmiBdCompat.CONFLICT_MOD_ID);
+        }
         if (targetClassName.startsWith("com.atsuishio.superbwarfare.")) return modList.isLoaded("superbwarfare");
         if (targetClassName.startsWith("com.tacz.guns.")) return modList.isLoaded("tacz");
         if (targetClassName.startsWith("com.mafuyu404.taczaddon.")) {
